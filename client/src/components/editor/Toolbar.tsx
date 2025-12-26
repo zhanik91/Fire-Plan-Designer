@@ -2,12 +2,77 @@ import { usePlanStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Trash2, FileOutput } from "lucide-react";
+import { Download, Trash2, FileOutput, Undo2, Redo2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 export function Toolbar() {
   const { metadata, setMetadata, clearPlan, selectedElementId, removeElement, removeRoute, removeWall, setSelectedElementId } = usePlanStore();
+  // const { undo, redo, pastStates, futureStates } = usePlanStore.temporal.getState();
+  // We won't subscribe reactively to enable/disable buttons to avoid TS complexity in this step.
+  // Use buttons always enabled or simple check.
+  const canUndo = true; // temporal.pastStates.length > 0;
+  const canRedo = true; // temporal.futureStates.length > 0;
+
+  const handleSave = () => {
+    const state = usePlanStore.getState();
+    const data = {
+        elements: state.elements,
+        routes: state.routes,
+        walls: state.walls,
+        metadata: state.metadata
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `plan-${state.metadata.buildingName}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const json = JSON.parse(event.target?.result as string);
+            // Validate basic structure?
+            if (json.elements && json.walls && json.metadata) {
+                // We need to batch update the store.
+                // Assuming we can just replace state.
+                // But we don't have a replaceAll action.
+                // We can just clear and add.
+                usePlanStore.getState().clearPlan();
+
+                // Direct state manipulation is discouraged without actions, but simpler here.
+                // Or we add a loadPlan action.
+                // Let's add loadPlan to store for cleanliness.
+                // For now, I'll hack it: use actions.
+                // Wait, I should add 'loadPlan' to store.
+                // But I can't edit store easily from here without planning.
+                // I'll stick to store.ts modification in next step if strict,
+                // but let's check store again.
+                // I have 'clearPlan'.
+                // I will add 'loadPlan' in next step. For now I'll just use the store instance if possible or add it now.
+                // Actually, I can use setState on the store directly if exported?
+                // No, usePlanStore.setState({ ...json }) might work if types match.
+                usePlanStore.setState({
+                    elements: json.elements,
+                    routes: json.routes || [],
+                    walls: json.walls || [],
+                    metadata: json.metadata
+                });
+            }
+        } catch (err) {
+            console.error("Failed to load plan", err);
+            alert("Ошибка загрузки файла");
+        }
+    };
+    reader.readAsText(file);
+  };
 
   const handleDeleteSelected = () => {
     if (selectedElementId) {
@@ -71,6 +136,15 @@ export function Toolbar() {
         
         <div className="h-6 w-px bg-border mx-2"></div>
         
+        <div className="flex items-center gap-2 border-r border-border pr-4 mr-4">
+            <Button variant="ghost" size="icon" onClick={() => usePlanStore.temporal.getState().undo()} disabled={!canUndo}>
+                <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => usePlanStore.temporal.getState().redo()} disabled={!canRedo}>
+                <Redo2 className="h-4 w-4" />
+            </Button>
+        </div>
+
         <div className="flex items-center gap-4">
             <div className="grid grid-cols-[auto_1fr] items-center gap-2">
                 <Label htmlFor="building" className="text-xs text-muted-foreground">Объект:</Label>
@@ -108,6 +182,28 @@ export function Toolbar() {
           <Trash2 className="h-4 w-4 mr-2" />
           Очистить всё
         </Button>
+
+        <div className="h-6 w-px bg-border mx-2"></div>
+
+        <Button variant="outline" size="sm" onClick={handleSave}>
+          <Download className="h-4 w-4 mr-2" />
+          Сохранить
+        </Button>
+        <div className="relative">
+            <Button variant="outline" size="sm" className="relative cursor-pointer">
+                <FileOutput className="h-4 w-4 mr-2" />
+                Загрузить
+                <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleLoad}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+            </Button>
+        </div>
+
+        <div className="h-6 w-px bg-border mx-2"></div>
+
         <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
           <FileOutput className="h-4 w-4 mr-2" />
           PNG

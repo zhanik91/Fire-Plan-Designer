@@ -1,9 +1,10 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Stage, Layer, Line, Group, Rect, Arrow } from 'react-konva';
+import { Stage, Layer, Line, Group, Rect, Arrow, Transformer } from 'react-konva';
 import { usePlanStore } from '@/lib/store';
 import { ElementType } from '@/lib/types';
 import Konva from 'konva';
 import { SymbolRenderer } from './icons';
+import { PropertiesPanel } from './PropertiesPanel';
 
 export function PlanCanvas() {
   const { 
@@ -13,8 +14,13 @@ export function PlanCanvas() {
   } = usePlanStore();
   
   const stageRef = useRef<Konva.Stage>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
   const [currentPoints, setCurrentPoints] = useState<number[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Zoom / Pan State
+  const [stageScale, setStageScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
 
   // Keyboard support for delete
   useEffect(() => {
@@ -32,21 +38,74 @@ export function PlanCanvas() {
   }, [selectedElementId]);
 
   // Grid sizing
-  const width = 800; // A4 proportional ish
-  const height = 600;
+  const width = window.innerWidth;
+  const height = window.innerHeight; // Infinite canvas view
   const gridSize = 20;
+
+  useEffect(() => {
+    if (selectedElementId && transformerRef.current) {
+        // We need to find the node.
+        // Konva Transformer needs to attach to a Node.
+        // Since we render declarative components, we can try to find them by name/id or ref.
+        // Or we can manually attach if we have the ref of the selected item.
+        // It's easier if we give each item a 'name' prop equal to its ID.
+        const stage = transformerRef.current.getStage();
+        const selectedNode = stage?.findOne('.' + selectedElementId);
+
+        if (selectedNode) {
+            transformerRef.current.nodes([selectedNode]);
+            transformerRef.current.getLayer()?.batchDraw();
+        } else {
+             transformerRef.current.nodes([]);
+        }
+    } else {
+        transformerRef.current?.nodes([]);
+    }
+  }, [selectedElementId, elements, routes, walls]);
+
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+    e.evt.preventDefault();
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    const scaleBy = 1.1;
+    const oldScale = stage.scaleX();
+    const pointer = stage.getPointerPosition();
+
+    if (!pointer) return;
+
+    const mousePointTo = {
+      x: (pointer.x - stage.x()) / oldScale,
+      y: (pointer.y - stage.y()) / oldScale,
+    };
+
+    const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
+    setStageScale(newScale);
+    setStagePos({
+        x: pointer.x - mousePointTo.x * newScale,
+        y: pointer.y - mousePointTo.y * newScale,
+    });
+  };
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage();
     if (!stage) return;
+
+    // Transform pointer position to relative stage coordinates for drawing
+    const transform = stage.getAbsoluteTransform().copy();
+    transform.invert();
     const pos = stage.getPointerPosition();
     if (!pos) return;
 
+    const localPos = transform.point(pos);
+
     // Snap to grid
-    const x = Math.round(pos.x / gridSize) * gridSize;
-    const y = Math.round(pos.y / gridSize) * gridSize;
+    const x = Math.round(localPos.x / gridSize) * gridSize;
+    const y = Math.round(localPos.y / gridSize) * gridSize;
 
     if (selectedTool === 'select') {
+      // If we are in select mode, we are handled by click handlers on objects or stage (for deselect)
       const clickedOnEmpty = e.target === stage.getStage();
       if (clickedOnEmpty) {
         setSelectedElementId(null);
@@ -82,11 +141,15 @@ export function PlanCanvas() {
     
     const stage = e.target.getStage();
     if (!stage) return;
+
+    const transform = stage.getAbsoluteTransform().copy();
+    transform.invert();
     const pos = stage.getPointerPosition();
     if (!pos) return;
+    const localPos = transform.point(pos);
 
-    const x = Math.round(pos.x / gridSize) * gridSize;
-    const y = Math.round(pos.y / gridSize) * gridSize;
+    const x = Math.round(localPos.x / gridSize) * gridSize;
+    const y = Math.round(localPos.y / gridSize) * gridSize;
 
     if (selectedTool === 'wall_draw' || selectedTool === 'room') {
         // Update the end point
@@ -152,21 +215,22 @@ export function PlanCanvas() {
 
   // Render Grid
   const gridLines = [];
-  for (let i = 0; i < width / gridSize; i++) {
+  const renderGridSize = 2000; // Render a large grid area
+  for (let i = 0; i < renderGridSize / gridSize; i++) {
     gridLines.push(
       <Line
         key={`v-${i}`}
-        points={[i * gridSize, 0, i * gridSize, height]}
+        points={[i * gridSize, 0, i * gridSize, renderGridSize]}
         stroke="#e5e7eb"
         strokeWidth={1}
       />
     );
   }
-  for (let j = 0; j < height / gridSize; j++) {
+  for (let j = 0; j < renderGridSize / gridSize; j++) {
     gridLines.push(
       <Line
         key={`h-${j}`}
-        points={[0, j * gridSize, width, j * gridSize]}
+        points={[0, j * gridSize, renderGridSize, j * gridSize]}
         stroke="#e5e7eb"
         strokeWidth={1}
       />
@@ -174,38 +238,44 @@ export function PlanCanvas() {
   }
 
   return (
-    <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden">
+    <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden flex-1 relative">
+      <PropertiesPanel />
       <Stage
         width={width}
         height={height}
+        draggable={selectedTool === 'select'}
+        onWheel={handleWheel}
+        scaleX={stageScale}
+        scaleY={stageScale}
+        x={stagePos.x}
+        y={stagePos.y}
         ref={stageRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onDblClick={handleDoubleClick}
-        className="cursor-crosshair bg-white"
+        className="cursor-crosshair bg-gray-50"
       >
         <Layer>
-          {gridLines}
+          <Group>{gridLines}</Group>
           
           {/* Walls */}
           {walls.map((wall) => (
             <Line
               key={wall.id}
+              name={wall.id} // Important for Transformer
               points={wall.points.flatMap(p => [p.x, p.y])}
               stroke={selectedElementId === wall.id ? "#2563EB" : "black"}
               strokeWidth={selectedElementId === wall.id ? 4 : 3}
               lineCap="round"
               lineJoin="round"
-              onClick={() => {
-                if (selectedTool === 'select') {
-                  setSelectedElementId(wall.id);
-                }
+              onClick={(e) => {
+                 e.cancelBubble = true;
+                 if (selectedTool === 'select') setSelectedElementId(wall.id);
               }}
-              onTap={() => {
-                if (selectedTool === 'select') {
-                  setSelectedElementId(wall.id);
-                }
+              onTap={(e) => {
+                 e.cancelBubble = true;
+                 if (selectedTool === 'select') setSelectedElementId(wall.id);
               }}
             />
           ))}
@@ -214,6 +284,7 @@ export function PlanCanvas() {
            {routes.map((route) => (
             <Arrow
               key={route.id}
+              name={route.id}
               points={route.points.flatMap(p => [p.x, p.y])}
               stroke={selectedElementId === route.id ? "#2563EB" : "#388E3C"}
               strokeWidth={selectedElementId === route.id ? 4 : 3}
@@ -221,15 +292,13 @@ export function PlanCanvas() {
               pointerLength={10}
               pointerWidth={10}
               dash={[10, 5]}
-              onClick={() => {
-                if (selectedTool === 'select') {
-                  setSelectedElementId(route.id);
-                }
+              onClick={(e) => {
+                 e.cancelBubble = true;
+                 if (selectedTool === 'select') setSelectedElementId(route.id);
               }}
-              onTap={() => {
-                if (selectedTool === 'select') {
-                  setSelectedElementId(route.id);
-                }
+              onTap={(e) => {
+                 e.cancelBubble = true;
+                 if (selectedTool === 'select') setSelectedElementId(route.id);
               }}
             />
           ))}
@@ -261,10 +330,15 @@ export function PlanCanvas() {
           {elements.map((el) => (
             <Group
               key={el.id}
+              name={el.id}
               x={el.x}
               y={el.y}
+              rotation={el.rotation}
+              scaleX={el.scale}
+              scaleY={el.scale}
               draggable={selectedTool === 'select'}
-              onClick={() => {
+              onClick={(e) => {
+                e.cancelBubble = true;
                 if(selectedTool === 'select') setSelectedElementId(el.id)
               }}
               onDragEnd={(e) => {
@@ -273,19 +347,32 @@ export function PlanCanvas() {
                   y: e.target.y()
                 });
               }}
+              onTransformEnd={(e) => {
+                 const node = e.target;
+                 updateElement(el.id, {
+                    x: node.x(),
+                    y: node.y(),
+                    rotation: node.rotation(),
+                    scale: node.scaleX(), // Assuming uniform scale
+                 });
+                 // Reset scale to 1 in store if you want, but Konva keeps it.
+                 // Usually better to sync.
+              }}
             >
                <SymbolRenderer type={el.type} />
-               {selectedElementId === el.id && (
-                 <Rect
-                    width={el.type === 'exit' ? 60 : 30}
-                    height={30}
-                    stroke="#2563EB"
-                    strokeWidth={2}
-                    dash={[5, 5]}
-                 />
-               )}
             </Group>
           ))}
+
+          <Transformer
+             ref={transformerRef}
+             boundBoxFunc={(oldBox, newBox) => {
+                 // limit resize
+                 if (newBox.width < 5 || newBox.height < 5) {
+                     return oldBox;
+                 }
+                 return newBox;
+             }}
+          />
         </Layer>
       </Stage>
     </div>
