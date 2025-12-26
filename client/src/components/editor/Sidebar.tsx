@@ -19,7 +19,7 @@ const ToolButton = ({
   icon: Icon, 
   label 
 }: { 
-  tool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase'; 
+  tool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase' | 'room';
   icon: any; 
   label: string 
 }) => {
@@ -45,6 +45,7 @@ export function Sidebar() {
         <h3 className="text-sm font-semibold mb-3 text-sidebar-foreground">Инструменты</h3>
         <ToolButton tool="select" icon={MousePointer2} label="Выбрать / Переместить" />
         <ToolButton tool="wall_draw" icon={Square} label="Рисовать стены" />
+        <ToolButton tool="room" icon={Square} label="Комната" />
         <ToolButton tool="route" icon={Route} label="Маршрут эвакуации" />
       </div>
 
