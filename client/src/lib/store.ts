@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { temporal } from 'zundo';
 import { PlanElement, PlanRoute, PlanMetadata, ElementType, Point, PlanWall } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -28,79 +29,90 @@ interface PlanState {
   clearPlan: () => void;
 }
 
-export const usePlanStore = create<PlanState>((set) => ({
-  elements: [],
-  routes: [],
-  walls: [],
-  metadata: {
-    buildingName: 'Офисное здание №1',
-    floor: '1',
-    responsible: 'Иванов И.И.',
-  },
-  selectedTool: 'select',
-  selectedElementId: null,
-
-  addElement: (type, x, y) => set((state) => ({
-    elements: [...state.elements, {
-      id: uuidv4(),
-      type,
-      x,
-      y,
-      rotation: 0,
-      scale: 1,
-    }]
-  })),
-
-  updateElement: (id, updates) => set((state) => ({
-    elements: state.elements.map((el) => 
-      el.id === id ? { ...el, ...updates } : el
-    )
-  })),
-
-  removeElement: (id) => set((state) => ({
-    elements: state.elements.filter((el) => el.id !== id),
-    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
-  })),
-
-  addRoute: (points) => set((state) => ({
-    routes: [...state.routes, { id: uuidv4(), points }]
-  })),
-
-  removeRoute: (id) => set((state) => ({
-    routes: state.routes.filter((r) => r.id !== id),
-    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
-  })),
-
-  addWall: (points) => set((state) => ({
-    walls: [...state.walls, { id: uuidv4(), points }]
-  })),
-
-  removeWall: (id) => set((state) => ({
-    walls: state.walls.filter((w) => w.id !== id),
-    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
-  })),
-
-  // For Room tool
-  addRoom: (walls: PlanWall[]) => set((state) => ({
-    walls: [...state.walls, ...walls]
-  })),
-
-  setMetadata: (updates) => set((state) => ({
-    metadata: { ...state.metadata, ...updates }
-  })),
-
-  setSelectedTool: (tool) => set({ selectedTool: tool }),
-  setSelectedElementId: (id) => set({ selectedElementId: id }),
-  
-  clearPlan: () => set({
-    elements: [],
-    routes: [],
-    walls: [],
-    metadata: {
+export const usePlanStore = create<PlanState>()(
+  temporal(
+    (set) => ({
+      elements: [],
+      routes: [],
+      walls: [],
+      metadata: {
         buildingName: 'Офисное здание №1',
         floor: '1',
         responsible: 'Иванов И.И.',
-    },
-    selectedElementId: null
-  })
-}));
+      },
+      selectedTool: 'select',
+      selectedElementId: null,
+
+      addElement: (type, x, y) => set((state) => ({
+        elements: [...state.elements, {
+          id: uuidv4(),
+          type,
+          x,
+          y,
+          rotation: 0,
+          scale: 1,
+        }]
+      })),
+
+      updateElement: (id, updates) => set((state) => ({
+        elements: state.elements.map((el) =>
+          el.id === id ? { ...el, ...updates } : el
+        )
+      })),
+
+      removeElement: (id) => set((state) => ({
+        elements: state.elements.filter((el) => el.id !== id),
+        selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
+      })),
+
+      addRoute: (points) => set((state) => ({
+        routes: [...state.routes, { id: uuidv4(), points }]
+      })),
+
+      removeRoute: (id) => set((state) => ({
+        routes: state.routes.filter((r) => r.id !== id),
+        selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
+      })),
+
+      addWall: (points) => set((state) => ({
+        walls: [...state.walls, { id: uuidv4(), points }]
+      })),
+
+      removeWall: (id) => set((state) => ({
+        walls: state.walls.filter((w) => w.id !== id),
+        selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
+      })),
+
+      // For Room tool
+      addRoom: (walls: PlanWall[]) => set((state) => ({
+        walls: [...state.walls, ...walls]
+      })),
+
+      setMetadata: (updates) => set((state) => ({
+        metadata: { ...state.metadata, ...updates }
+      })),
+
+      setSelectedTool: (tool) => set({ selectedTool: tool }),
+      setSelectedElementId: (id) => set({ selectedElementId: id }),
+
+      clearPlan: () => set({
+        elements: [],
+        routes: [],
+        walls: [],
+        metadata: {
+            buildingName: 'Офисное здание №1',
+            floor: '1',
+            responsible: 'Иванов И.И.',
+        },
+        selectedElementId: null
+      })
+    }),
+    {
+      partialize: (state) => {
+        const { elements, routes, walls, metadata } = state;
+        return { elements, routes, walls, metadata };
+      },
+      limit: 100
+    }
+  )
+);
