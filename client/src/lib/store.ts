@@ -7,7 +7,7 @@ interface PlanState {
   routes: PlanRoute[];
   walls: PlanWall[];
   metadata: PlanMetadata;
-  selectedTool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase';
+  selectedTool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase' | 'room';
   selectedElementId: string | null;
   
   // Actions
@@ -20,9 +20,10 @@ interface PlanState {
 
   addWall: (points: Point[]) => void;
   removeWall: (id: string) => void;
-  
+  addRoom: (walls: PlanWall[]) => void;
+
   setMetadata: (updates: Partial<PlanMetadata>) => void;
-  setSelectedTool: (tool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase') => void;
+  setSelectedTool: (tool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase' | 'room') => void;
   setSelectedElementId: (id: string | null) => void;
   clearPlan: () => void;
 }
@@ -57,7 +58,8 @@ export const usePlanStore = create<PlanState>((set) => ({
   })),
 
   removeElement: (id) => set((state) => ({
-    elements: state.elements.filter((el) => el.id !== id)
+    elements: state.elements.filter((el) => el.id !== id),
+    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
   })),
 
   addRoute: (points) => set((state) => ({
@@ -65,7 +67,8 @@ export const usePlanStore = create<PlanState>((set) => ({
   })),
 
   removeRoute: (id) => set((state) => ({
-    routes: state.routes.filter((r) => r.id !== id)
+    routes: state.routes.filter((r) => r.id !== id),
+    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
   })),
 
   addWall: (points) => set((state) => ({
@@ -73,7 +76,13 @@ export const usePlanStore = create<PlanState>((set) => ({
   })),
 
   removeWall: (id) => set((state) => ({
-    walls: state.walls.filter((w) => w.id !== id)
+    walls: state.walls.filter((w) => w.id !== id),
+    selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
+  })),
+
+  // For Room tool
+  addRoom: (walls: PlanWall[]) => set((state) => ({
+    walls: [...state.walls, ...walls]
   })),
 
   setMetadata: (updates) => set((state) => ({

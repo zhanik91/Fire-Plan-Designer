@@ -1,70 +1,35 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Stage, Layer, Line, Group, Rect, Text, Circle, Arrow } from 'react-konva';
+import { Stage, Layer, Line, Group, Rect, Arrow } from 'react-konva';
 import { usePlanStore } from '@/lib/store';
-import { ElementType, PlanElement } from '@/lib/types';
+import { ElementType } from '@/lib/types';
 import Konva from 'konva';
-
-// Symbol Components
-const SymbolRenderer = ({ type }: { type: ElementType }) => {
-  switch (type) {
-    case 'exit':
-      return (
-        <Group>
-          <Rect width={60} height={30} fill="#388E3C" cornerRadius={2} />
-          <Text text="ВЫХОД" fontSize={14} fill="white" width={60} height={30} align="center" verticalAlign="middle" fontStyle="bold" fontFamily="Roboto" />
-        </Group>
-      );
-    case 'extinguisher':
-      return (
-        <Group>
-          <Rect width={30} height={30} fill="#D32F2F" cornerRadius={2} />
-          <Text text="🧯" fontSize={20} width={30} height={30} align="center" verticalAlign="middle" />
-        </Group>
-      );
-    case 'fire_hose':
-      return (
-        <Group>
-          <Rect width={30} height={30} fill="#D32F2F" cornerRadius={2} />
-          <Text text="F" fontSize={20} fill="white" width={30} height={30} align="center" verticalAlign="middle" fontStyle="bold" />
-        </Group>
-      );
-    case 'phone':
-      return (
-        <Group>
-          <Rect width={30} height={30} fill="#D32F2F" cornerRadius={2} />
-          <Text text="📞" fontSize={20} width={30} height={30} align="center" verticalAlign="middle" />
-        </Group>
-      );
-    case 'alarm':
-      return (
-        <Group>
-            <Rect width={30} height={30} fill="#D32F2F" cornerRadius={2} />
-            <Circle x={15} y={15} radius={8} fill="white" />
-            <Circle x={15} y={15} radius={4} fill="#D32F2F" />
-        </Group>
-        );
-    case 'you_are_here':
-      return (
-        <Group>
-          <Circle radius={15} fill="#1976D2" />
-          <Circle radius={5} fill="white" />
-          <Text text="Вы здесь" fontSize={12} fill="black" y={20} width={80} x={-40} align="center" fontFamily="Roboto"/>
-        </Group>
-      );
-    default:
-      return null;
-  }
-};
+import { SymbolRenderer } from './icons';
 
 export function PlanCanvas() {
   const { 
     elements, routes, walls, selectedTool, addElement, updateElement, 
-    selectedElementId, setSelectedElementId, addRoute, addWall 
+    selectedElementId, setSelectedElementId, addRoute, addWall, addRoom,
+    removeElement, removeRoute, removeWall
   } = usePlanStore();
   
   const stageRef = useRef<Konva.Stage>(null);
   const [currentPoints, setCurrentPoints] = useState<number[]>([]);
   const [isDrawing, setIsDrawing] = useState(false);
+
+  // Keyboard support for delete
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId) {
+        // Try to remove from all lists
+        removeElement(selectedElementId);
+        removeRoute(selectedElementId);
+        removeWall(selectedElementId);
+        setSelectedElementId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedElementId]);
 
   // Grid sizing
   const width = 800; // A4 proportional ish
@@ -94,9 +59,21 @@ export function PlanCanvas() {
       return;
     }
 
-    if (selectedTool === 'route' || selectedTool === 'wall_draw') {
+    if (selectedTool === 'wall_draw') {
         setIsDrawing(true);
-        setCurrentPoints([x, y]);
+        setCurrentPoints([x, y, x, y]); // Start point and current point
+    } else if (selectedTool === 'route') {
+        if (!isDrawing) {
+            setIsDrawing(true);
+            setCurrentPoints([x, y, x, y]);
+        } else {
+             // Add new point
+             const newPoints = [...currentPoints, x, y];
+             setCurrentPoints(newPoints);
+        }
+    } else if (selectedTool === 'room') {
+        setIsDrawing(true);
+        setCurrentPoints([x, y, x, y]); // Start point and current point
     }
   };
 
@@ -111,40 +88,66 @@ export function PlanCanvas() {
     const x = Math.round(pos.x / gridSize) * gridSize;
     const y = Math.round(pos.y / gridSize) * gridSize;
 
-    // For line drawing, we just update the last point to preview
-    // But typically for click-to-click polyline we might want different behavior
-    // Here let's do simple drag-to-draw or click-click. 
-    // Let's implement: Click to start, drag to preview line, release to finish segment?
-    // Actually, simpler: Mouse down starts, Mouse Move updates end, Mouse Up finishes.
-    
-    // Let's do simple 2-point lines for now per drag for walls, or polyline for routes.
-    // For MVP robustness: Click-Drag-Release creates a segment.
-    
-    if (currentPoints.length >= 2) {
-        const newPoints = [...currentPoints];
-        newPoints[newPoints.length - 2] = currentPoints[0]; // Start
-        newPoints[newPoints.length - 1] = x; // Update End x
-        newPoints.push(y); // Update End y - wait, flat array [x1, y1, x2, y2]
-        
+    if (selectedTool === 'wall_draw' || selectedTool === 'room') {
+        // Update the end point
         setCurrentPoints([currentPoints[0], currentPoints[1], x, y]);
-    } else {
-        setCurrentPoints([...currentPoints, x, y]);
+    } else if (selectedTool === 'route') {
+        // Update the last point
+        const newPoints = [...currentPoints];
+        newPoints[newPoints.length - 2] = x;
+        newPoints[newPoints.length - 1] = y;
+        setCurrentPoints(newPoints);
     }
   };
 
   const handleMouseUp = () => {
-    if (isDrawing) {
+    if (selectedTool === 'wall_draw' && isDrawing) {
         if (currentPoints.length === 4) { // x1,y1, x2,y2
             const points = [{x: currentPoints[0], y: currentPoints[1]}, {x: currentPoints[2], y: currentPoints[3]}];
-            if (selectedTool === 'route') {
-                addRoute(points);
-            } else if (selectedTool === 'wall_draw') {
-                addWall(points);
+            if (points[0].x !== points[1].x || points[0].y !== points[1].y) {
+                 addWall(points);
             }
         }
         setIsDrawing(false);
         setCurrentPoints([]);
+    } else if (selectedTool === 'room' && isDrawing) {
+        const x1 = currentPoints[0];
+        const y1 = currentPoints[1];
+        const x2 = currentPoints[2];
+        const y2 = currentPoints[3];
+
+        if (x1 !== x2 || y1 !== y2) {
+             const walls = [
+                { id: crypto.randomUUID(), points: [{x: x1, y: y1}, {x: x2, y: y1}] }, // Top
+                { id: crypto.randomUUID(), points: [{x: x2, y: y1}, {x: x2, y: y2}] }, // Right
+                { id: crypto.randomUUID(), points: [{x: x2, y: y2}, {x: x1, y: y2}] }, // Bottom
+                { id: crypto.randomUUID(), points: [{x: x1, y: y2}, {x: x1, y: y1}] }  // Left
+             ];
+             addRoom(walls);
+        }
+        setIsDrawing(false);
+        setCurrentPoints([]);
     }
+  };
+
+  // Add Double Click for finishing route
+  const handleDoubleClick = () => {
+      if (selectedTool === 'route' && isDrawing) {
+          if (currentPoints.length >= 4) {
+              const points = [];
+              for (let i = 0; i < currentPoints.length; i += 2) {
+                  points.push({x: currentPoints[i], y: currentPoints[i+1]});
+              }
+              // Remove the last point because it tracks the mouse
+              // Actually, we want to keep the clicked point.
+              // Logic: Click adds a point. Moving updates the "next" segment.
+              // Double click usually signifies "finish here".
+              // So we take all points.
+              addRoute(points);
+          }
+          setIsDrawing(false);
+          setCurrentPoints([]);
+      }
   };
 
   // Render Grid
@@ -179,6 +182,7 @@ export function PlanCanvas() {
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
+        onDblClick={handleDoubleClick}
         className="cursor-crosshair bg-white"
       >
         <Layer>
@@ -189,10 +193,20 @@ export function PlanCanvas() {
             <Line
               key={wall.id}
               points={wall.points.flatMap(p => [p.x, p.y])}
-              stroke="black"
-              strokeWidth={3}
+              stroke={selectedElementId === wall.id ? "#2563EB" : "black"}
+              strokeWidth={selectedElementId === wall.id ? 4 : 3}
               lineCap="round"
               lineJoin="round"
+              onClick={() => {
+                if (selectedTool === 'select') {
+                  setSelectedElementId(wall.id);
+                }
+              }}
+              onTap={() => {
+                if (selectedTool === 'select') {
+                  setSelectedElementId(wall.id);
+                }
+              }}
             />
           ))}
 
@@ -201,23 +215,46 @@ export function PlanCanvas() {
             <Arrow
               key={route.id}
               points={route.points.flatMap(p => [p.x, p.y])}
-              stroke="#388E3C"
-              strokeWidth={3}
-              fill="#388E3C"
+              stroke={selectedElementId === route.id ? "#2563EB" : "#388E3C"}
+              strokeWidth={selectedElementId === route.id ? 4 : 3}
+              fill={selectedElementId === route.id ? "#2563EB" : "#388E3C"}
               pointerLength={10}
               pointerWidth={10}
               dash={[10, 5]}
+              onClick={() => {
+                if (selectedTool === 'select') {
+                  setSelectedElementId(route.id);
+                }
+              }}
+              onTap={() => {
+                if (selectedTool === 'select') {
+                  setSelectedElementId(route.id);
+                }
+              }}
             />
           ))}
 
           {/* Drawing Preview */}
           {isDrawing && (
-              <Line
-                points={currentPoints}
-                stroke={selectedTool === 'wall_draw' ? "black" : "#388E3C"}
-                strokeWidth={3}
-                dash={selectedTool === 'route' ? [10, 5] : []}
-              />
+              <>
+                {selectedTool === 'room' ? (
+                     <Rect
+                        x={Math.min(currentPoints[0], currentPoints[2])}
+                        y={Math.min(currentPoints[1], currentPoints[3])}
+                        width={Math.abs(currentPoints[2] - currentPoints[0])}
+                        height={Math.abs(currentPoints[3] - currentPoints[1])}
+                        stroke="black"
+                        strokeWidth={3}
+                     />
+                ) : (
+                    <Line
+                        points={currentPoints}
+                        stroke={selectedTool === 'wall_draw' ? "black" : "#388E3C"}
+                        strokeWidth={3}
+                        dash={selectedTool === 'route' ? [10, 5] : []}
+                    />
+                )}
+              </>
           )}
 
           {/* Elements */}

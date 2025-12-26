@@ -1,0 +1,11 @@
+
+> rest-express@1.0.0 dev:client
+> vite dev --port 5000
+
+
+  VITE v7.1.12  ready in 557 ms
+
+  ➜  Local:   http://localhost:5000/
+  ➜  Network: http://192.168.0.2:5000/
+10:33:39 PM [vite] (client) hmr update /src/index.css, /src/pages/Editor.tsx, /src/components/editor/PlanCanvas.tsx, /src/components/editor/Sidebar.tsx, /src/components/editor/Toolbar.tsx, /src/components/editor/Legend.tsx
+10:34:30 PM [vite] (client) hmr update /src/index.css, /src/components/editor/PlanCanvas.tsx

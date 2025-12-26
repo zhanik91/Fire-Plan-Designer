@@ -7,7 +7,16 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
 export function Toolbar() {
-  const { metadata, setMetadata, clearPlan } = usePlanStore();
+  const { metadata, setMetadata, clearPlan, selectedElementId, removeElement, removeRoute, removeWall, setSelectedElementId } = usePlanStore();
+
+  const handleDeleteSelected = () => {
+    if (selectedElementId) {
+      removeElement(selectedElementId);
+      removeRoute(selectedElementId);
+      removeWall(selectedElementId);
+      setSelectedElementId(null);
+    }
+  };
 
   const handleExport = async (format: 'png' | 'pdf') => {
     const stage = document.querySelector('.konvajs-content canvas');
@@ -85,9 +94,19 @@ export function Toolbar() {
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleDeleteSelected}
+          disabled={!selectedElementId}
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+        >
+          <Trash2 className="h-4 w-4 mr-2" />
+          Удалить
+        </Button>
         <Button variant="ghost" size="sm" onClick={clearPlan} className="text-destructive hover:text-destructive hover:bg-destructive/10">
           <Trash2 className="h-4 w-4 mr-2" />
-          Очистить
+          Очистить всё
         </Button>
         <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
           <FileOutput className="h-4 w-4 mr-2" />
