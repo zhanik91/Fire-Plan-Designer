@@ -10,12 +10,12 @@ interface PlanState {
   metadata: PlanMetadata;
   selectedTool: ElementType | 'select' | 'route' | 'wall_draw' | 'erase' | 'room';
   selectedElementId: string | null;
-  
+
   // Actions
   addElement: (type: ElementType, x: number, y: number) => void;
   updateElement: (id: string, updates: Partial<PlanElement>) => void;
   removeElement: (id: string) => void;
-  
+
   addRoute: (points: Point[]) => void;
   removeRoute: (id: string) => void;
 
@@ -84,7 +84,6 @@ export const usePlanStore = create<PlanState>()(
         selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
       })),
 
-      // For Room tool
       addRoom: (walls: PlanWall[]) => set((state) => ({
         walls: [...state.walls, ...walls]
       })),
@@ -104,7 +103,7 @@ export const usePlanStore = create<PlanState>()(
             buildingName: 'Офисное здание №1',
             floor: '1',
             responsible: 'Иванов И.И.',
-        pixelsPerMeter: 20,
+            pixelsPerMeter: 20,
         },
         selectedElementId: null
       })
