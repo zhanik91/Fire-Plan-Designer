@@ -37,6 +37,7 @@ export interface PlanMetadata {
   buildingName: string;
   floor: string;
   responsible: string;
+  pixelsPerMeter: number;
 }
 
 export const ELEMENT_LABELS: Record<ElementType, string> = {
