@@ -39,6 +39,7 @@ export const usePlanStore = create<PlanState>()(
         buildingName: 'Офисное здание №1',
         floor: '1',
         responsible: 'Иванов И.И.',
+        pixelsPerMeter: 20, // Default: 20px = 1m
       },
       selectedTool: 'select',
       selectedElementId: null,
@@ -103,6 +104,7 @@ export const usePlanStore = create<PlanState>()(
             buildingName: 'Офисное здание №1',
             floor: '1',
             responsible: 'Иванов И.И.',
+        pixelsPerMeter: 20,
         },
         selectedElementId: null
       })

@@ -5,12 +5,13 @@ import { ElementType } from '@/lib/types';
 import Konva from 'konva';
 import { SymbolRenderer } from './icons';
 import { PropertiesPanel } from './PropertiesPanel';
+import { Text as KonvaText } from 'react-konva';
 
 export function PlanCanvas() {
   const { 
     elements, routes, walls, selectedTool, addElement, updateElement, 
     selectedElementId, setSelectedElementId, addRoute, addWall, addRoom,
-    removeElement, removeRoute, removeWall
+    removeElement, removeRoute, removeWall, metadata
   } = usePlanStore();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -260,25 +261,44 @@ export function PlanCanvas() {
           <Group>{gridLines}</Group>
           
           {/* Walls */}
-          {walls.map((wall) => (
-            <Line
-              key={wall.id}
-              name={wall.id} // Important for Transformer
-              points={wall.points.flatMap(p => [p.x, p.y])}
-              stroke={selectedElementId === wall.id ? "#2563EB" : "black"}
-              strokeWidth={selectedElementId === wall.id ? 4 : 3}
-              lineCap="round"
-              lineJoin="round"
-              onClick={(e) => {
-                 e.cancelBubble = true;
-                 if (selectedTool === 'select') setSelectedElementId(wall.id);
-              }}
-              onTap={(e) => {
-                 e.cancelBubble = true;
-                 if (selectedTool === 'select') setSelectedElementId(wall.id);
-              }}
-            />
-          ))}
+          {walls.map((wall) => {
+            const isSelected = selectedElementId === wall.id;
+            const len = Math.sqrt(
+                Math.pow(wall.points[1].x - wall.points[0].x, 2) +
+                Math.pow(wall.points[1].y - wall.points[0].y, 2)
+            );
+            const meters = (len / (metadata.pixelsPerMeter || 20)).toFixed(2);
+
+            return (
+            <Group key={wall.id}>
+                <Line
+                name={wall.id} // Important for Transformer
+                points={wall.points.flatMap(p => [p.x, p.y])}
+                stroke={isSelected ? "#2563EB" : "black"}
+                strokeWidth={isSelected ? 4 : 3}
+                lineCap="round"
+                lineJoin="round"
+                onClick={(e) => {
+                    e.cancelBubble = true;
+                    if (selectedTool === 'select') setSelectedElementId(wall.id);
+                }}
+                onTap={(e) => {
+                    e.cancelBubble = true;
+                    if (selectedTool === 'select') setSelectedElementId(wall.id);
+                }}
+                />
+                {isSelected && (
+                    <KonvaText
+                        x={(wall.points[0].x + wall.points[1].x) / 2}
+                        y={(wall.points[0].y + wall.points[1].y) / 2 - 15}
+                        text={`${meters} м`}
+                        fontSize={14}
+                        fill="#2563EB"
+                        align="center"
+                    />
+                )}
+            </Group>
+          )})}
 
            {/* Routes */}
            {routes.map((route) => (
