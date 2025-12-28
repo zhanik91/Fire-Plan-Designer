@@ -84,6 +84,7 @@ export const usePlanStore = create<PlanState>()(
         selectedElementId: state.selectedElementId === id ? null : state.selectedElementId
       })),
 
+      // For Room tool
       addRoom: (walls: PlanWall[]) => set((state) => ({
         walls: [...state.walls, ...walls]
       })),
@@ -103,7 +104,7 @@ export const usePlanStore = create<PlanState>()(
             buildingName: 'Офисное здание №1',
             floor: '1',
             responsible: 'Иванов И.И.',
-            pixelsPerMeter: 20,
+        pixelsPerMeter: 20,
         },
         selectedElementId: null
       })

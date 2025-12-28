@@ -118,7 +118,7 @@ export function Toolbar() {
     <div className="h-16 border-b border-border bg-white px-6 flex items-center justify-between shadow-sm z-10 relative">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-           <span className="font-bold text-lg tracking-tight text-primary">FireSafety</span>
+           <span className="font-bold text-lg tracking-tight text-primary">План Эвакуации</span>
            <span className="bg-primary text-white text-[10px] px-1.5 py-0.5 rounded font-mono">EDITOR</span>
         </div>
         
