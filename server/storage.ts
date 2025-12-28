@@ -1,37 +1,47 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { plans, type Plan, type InsertPlan } from "@shared/schema";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  createPlan(plan: InsertPlan): Promise<Plan>;
+  getPlan(id: number): Promise<Plan | undefined>;
+  getPlans(): Promise<Plan[]>;
+  updatePlan(id: number, plan: Partial<InsertPlan>): Promise<Plan>;
+  deletePlan(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<string, User>;
+  private plans: Map<number, Plan>;
+  private currentId: number;
 
   constructor() {
-    this.users = new Map();
+    this.plans = new Map();
+    this.currentId = 1;
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async createPlan(insertPlan: InsertPlan): Promise<Plan> {
+    const id = this.currentId++;
+    const plan: Plan = { ...insertPlan, id, textPart: insertPlan.textPart || null, createdAt: new Date().toISOString() };
+    this.plans.set(id, plan);
+    return plan;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async getPlan(id: number): Promise<Plan | undefined> {
+    return this.plans.get(id);
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getPlans(): Promise<Plan[]> {
+    return Array.from(this.plans.values());
+  }
+
+  async updatePlan(id: number, update: Partial<InsertPlan>): Promise<Plan> {
+    const existing = await this.getPlan(id);
+    if (!existing) throw new Error("Plan not found");
+    const updated = { ...existing, ...update };
+    this.plans.set(id, updated);
+    return updated;
+  }
+
+  async deletePlan(id: number): Promise<void> {
+    this.plans.delete(id);
   }
 }
 
