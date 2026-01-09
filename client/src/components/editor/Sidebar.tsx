@@ -2,10 +2,18 @@ import { usePlanStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   MousePointer2, DoorOpen, FireExtinguisher, Phone,
   MapPin, Route, Square, Flame, Bell, Type
 } from "lucide-react";
 import { ElementType } from "@/lib/types";
+import { PLAN_TEMPLATES } from "@/lib/templates";
 
 const ToolButton = ({ tool, icon: Icon, label }: { tool: any; icon: any; label: string }) => {
   const { selectedTool, setSelectedTool } = usePlanStore();
@@ -24,8 +32,37 @@ const ToolButton = ({ tool, icon: Icon, label }: { tool: any; icon: any; label: 
 };
 
 export function Sidebar() {
+  const { loadTemplate } = usePlanStore();
+
+  const handleTemplateSelect = (value: string) => {
+    const template = PLAN_TEMPLATES.find(t => t.name === value);
+    if (template) {
+      if (confirm('Текущий план будет очищен. Загрузить шаблон?')) {
+        loadTemplate(template.data);
+      }
+    }
+  };
+
   return (
     <div className="w-64 bg-sidebar border-r border-sidebar-border h-full p-4 flex flex-col gap-4 overflow-y-auto">
+      <div>
+        <h3 className="text-sm font-semibold mb-3 text-sidebar-foreground">Шаблоны</h3>
+        <Select onValueChange={handleTemplateSelect}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Выберите шаблон" />
+          </SelectTrigger>
+          <SelectContent>
+            {PLAN_TEMPLATES.map((t) => (
+              <SelectItem key={t.name} value={t.name}>
+                {t.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <Separator />
+
       <div>
         <h3 className="text-sm font-semibold mb-3 text-sidebar-foreground">Инструменты</h3>
         <ToolButton tool="select" icon={MousePointer2} label="Выбрать / Переместить" />

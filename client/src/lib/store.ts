@@ -23,6 +23,7 @@ interface PlanState {
   setSelectedTool: (tool: PlanState['selectedTool']) => void;
   setSelectedElementId: (id: string | null) => void;
   clearPlan: () => void;
+  loadTemplate: (templateData: { elements: PlanElement[], walls: PlanWall[], metadata: Partial<PlanMetadata> }) => void;
 }
 
 export const usePlanStore = create<PlanState>()(
@@ -105,7 +106,15 @@ export const usePlanStore = create<PlanState>()(
             responsible: 'Иванов И.И.',
         } as any, // Cast to avoid partial match issues if types mismatch
         selectedElementId: null
-      })
+      }),
+
+      loadTemplate: (data) => set((state) => ({
+        routes: [],
+        selectedElementId: null,
+        walls: data.walls.map(w => ({ ...w, id: uuidv4() })),
+        elements: data.elements.map(e => ({ ...e, id: uuidv4() })),
+        metadata: { ...state.metadata, ...data.metadata }
+      }))
     }),
     {
       partialize: (state) => {

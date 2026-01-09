@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, Trash2, FileOutput, Undo2, Redo2 } from "lucide-react";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { CalibrationDialog } from "./CalibrationDialog";
 import { generatePDF } from "@/lib/pdfGenerator";
