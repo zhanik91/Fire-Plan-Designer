@@ -13,7 +13,7 @@ import { ElementType } from '@/lib/types';
 // Let's stick to the plan: Better icons.
 // I will use some standard SVG paths for these symbols.
 
-const ICONS = {
+export const ICONS = {
   // Door Open
   exit: "M13 4h3a2 2 0 0 1 2 2v14",
   exit_arrow: "M2 20h3",
