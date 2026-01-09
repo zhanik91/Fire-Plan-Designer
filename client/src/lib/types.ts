@@ -1,7 +1,13 @@
 export type ElementType = 
-  | 'wall' | 'window' | 'door' | 'exit'
-  | 'extinguisher' | 'fire_hose' | 'phone'
-  | 'alarm' | 'you_are_here' | 'text';
+  | 'wall' 
+  | 'window' 
+  | 'door' 
+  | 'exit' 
+  | 'extinguisher' 
+  | 'fire_hose' 
+  | 'phone' 
+  | 'alarm' 
+  | 'you_are_here';
 
 export interface PlanElement {
   id: string;
@@ -10,7 +16,6 @@ export interface PlanElement {
   y: number;
   rotation: number;
   scale: number;
-  text?: string;
 }
 
 export interface Point {
@@ -18,12 +23,9 @@ export interface Point {
   y: number;
 }
 
-export type RouteType = 'main' | 'backup';
-
 export interface PlanRoute {
   id: string;
   points: Point[];
-  type: RouteType;
 }
 
 export interface PlanWall {
@@ -35,7 +37,6 @@ export interface PlanMetadata {
   buildingName: string;
   floor: string;
   responsible: string;
-  pixelsPerMeter?: number;
 }
 
 export const ELEMENT_LABELS: Record<ElementType, string> = {
@@ -47,6 +48,5 @@ export const ELEMENT_LABELS: Record<ElementType, string> = {
   fire_hose: 'Пожарный кран',
   phone: 'Телефон',
   alarm: 'Кнопка тревоги',
-  you_are_here: 'Вы находитесь здесь',
-  text: 'Текст'
+  you_are_here: 'Вы находитесь здесь'
 };
