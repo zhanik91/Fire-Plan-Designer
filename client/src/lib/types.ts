@@ -8,7 +8,10 @@ export type ElementType =
   | 'phone' 
   | 'alarm' 
   | 'you_are_here'
-  | 'text';
+  | 'text'
+  | 'stairs'
+  | 'first_aid'
+  | 'assembly_point';
 
 export interface PlanElement {
   id: string;
@@ -55,5 +58,8 @@ export const ELEMENT_LABELS: Record<ElementType, string> = {
   phone: 'Телефон',
   alarm: 'Кнопка тревоги',
   you_are_here: 'Вы находитесь здесь',
-  text: 'Текст'
+  text: 'Текст',
+  stairs: 'Лестница',
+  first_aid: 'Аптечка',
+  assembly_point: 'Точка сбора'
 };

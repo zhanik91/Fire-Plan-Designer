@@ -2,10 +2,11 @@ import { PlanCanvas } from "@/components/editor/PlanCanvas";
 import { Sidebar } from "@/components/editor/Sidebar";
 import { Toolbar } from "@/components/editor/Toolbar";
 import { Legend } from "@/components/editor/Legend";
+import { AIAssistant } from "@/components/editor/AIAssistant";
 import { usePlanStore } from "@/lib/store";
 
 export default function Editor() {
-  const { metadata } = usePlanStore();
+  const { metadata, isAssistantOpen } = usePlanStore();
 
   return (
     <div className="h-screen w-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -58,6 +59,8 @@ export default function Editor() {
                 </div>
             </div>
         </main>
+
+        {isAssistantOpen && <AIAssistant />}
       </div>
     </div>
   );

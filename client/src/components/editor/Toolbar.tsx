@@ -2,13 +2,24 @@ import { usePlanStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Trash2, FileOutput, Undo2, Redo2 } from "lucide-react";
+import { Download, Trash2, FileOutput, Undo2, Redo2, Bot } from "lucide-react";
 import jsPDF from "jspdf";
 import { CalibrationDialog } from "./CalibrationDialog";
 import { generatePDF } from "@/lib/pdfGenerator";
 
 export function Toolbar() {
-  const { metadata, setMetadata, clearPlan, selectedElementId, removeElement, removeRoute, removeWall, setSelectedElementId } = usePlanStore();
+  const {
+    metadata,
+    setMetadata,
+    clearPlan,
+    selectedElementId,
+    removeElement,
+    removeRoute,
+    removeWall,
+    setSelectedElementId,
+    isAssistantOpen,
+    setAssistantOpen
+  } = usePlanStore();
   // const { undo, redo, pastStates, futureStates } = usePlanStore.temporal.getState();
   // We won't subscribe reactively to enable/disable buttons to avoid TS complexity in this step.
   // Use buttons always enabled or simple check.
@@ -202,6 +213,18 @@ export function Toolbar() {
         <Button variant="default" size="sm" onClick={() => handleExport('pdf')}>
           <Download className="h-4 w-4 mr-2" />
           PDF (A4)
+        </Button>
+
+        <div className="h-6 w-px bg-border mx-2"></div>
+
+        <Button
+            variant={isAssistantOpen ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setAssistantOpen(!isAssistantOpen)}
+            className={isAssistantOpen ? "bg-blue-100 text-blue-700 hover:bg-blue-200" : "text-blue-600"}
+        >
+          <Bot className="h-5 w-5 mr-2" />
+          Ассистент
         </Button>
       </div>
     </div>

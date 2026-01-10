@@ -3,23 +3,13 @@ import { Group, Rect, Path, Circle, Text } from 'react-konva';
 import { ElementType } from '@/lib/types';
 
 // Simplified paths for Lucide icons (extracted or approximated)
-// Konva Path expects SVG path data.
-// Since we have lucide-react installed, we could try to render it to image, but
-// for vector quality export later, having paths is better.
-// However, extracting paths from Lucide dynamically is hard without extra libs.
-// For now, we'll manually define some paths or use simple shapes + text,
-// OR we can use the `Path` component with data string if we find it.
-
-// Let's stick to the plan: Better icons.
-// I will use some standard SVG paths for these symbols.
-
 export const ICONS = {
   // Door Open
   exit: "M13 4h3a2 2 0 0 1 2 2v14",
   exit_arrow: "M2 20h3",
   exit_door: "M13 20h9",
 
-  // Fire Extinguisher (approximated)
+  // Fire Extinguisher
   extinguisher: "M15 6.5V3a1 1 0 0 0-1-1h-2a1 1 0 0 0-1 1v3.5l-2.08 2.08a2 2 0 0 0-.58 1.42V19a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-9a2 2 0 0 0-.58-1.42L15 6.5Z",
 
   // Flame (Fire Hose)
@@ -33,6 +23,15 @@ export const ICONS = {
 
   // Map Pin
   you_are_here: "M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z",
+
+  // Stairs
+  stairs: "M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM15 5v4h-4v4H7v4h4V9h4V5h-4z", // Material stairs-like
+
+  // First Aid
+  first_aid: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-1 11h-4v4h-4v-4H6v-4h4V6h4v4h4v4z",
+
+  // Assembly Point (people group)
+  assembly_point: "M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"
 };
 
 export const SymbolRenderer = ({ type }: { type: ElementType }) => {
@@ -144,6 +143,51 @@ export const SymbolRenderer = ({ type }: { type: ElementType }) => {
            />
         </Group>
       );
+
+    case 'stairs':
+        return (
+            <Group>
+                <Rect width={32} height={32} fill="#9E9E9E" cornerRadius={4} />
+                <Path
+                    data={ICONS.stairs}
+                    fill="white"
+                    scaleX={1}
+                    scaleY={1}
+                    x={4}
+                    y={4}
+                />
+            </Group>
+        );
+
+    case 'first_aid':
+        return (
+            <Group>
+                <Rect width={32} height={32} fill="#388E3C" cornerRadius={4} />
+                <Path
+                    data={ICONS.first_aid}
+                    fill="white"
+                    scaleX={1}
+                    scaleY={1}
+                    x={4}
+                    y={4}
+                />
+            </Group>
+        );
+
+    case 'assembly_point':
+        return (
+            <Group>
+                <Rect width={32} height={32} fill="#388E3C" cornerRadius={4} />
+                <Path
+                    data={ICONS.assembly_point}
+                    fill="white"
+                    scaleX={1}
+                    scaleY={1}
+                    x={4}
+                    y={4}
+                />
+            </Group>
+        );
 
     default:
       return (
