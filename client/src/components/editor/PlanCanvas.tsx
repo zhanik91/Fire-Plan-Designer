@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Stage, Layer, Line, Group, Rect, Arrow, Transformer, Text } from 'react-konva';
 import { usePlanStore } from '@/lib/store';
 import { ElementType } from '@/lib/types';
@@ -22,6 +22,45 @@ export function PlanCanvas() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Undo/Redo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+         e.preventDefault();
+         usePlanStore.temporal.getState().undo();
+         return;
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
+         e.preventDefault();
+         usePlanStore.temporal.getState().redo();
+         return;
+      }
+
+      // Escape to cancel drawing or deselect
+      if (e.key === 'Escape') {
+          if (isDrawing) {
+              setIsDrawing(false);
+              setCurrentPoints([]);
+          } else {
+              setSelectedElementId(null);
+              setSelectedTool('select');
+          }
+          return;
+      }
+
+      // Nudge with Arrows
+      if (selectedElementId && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+          e.preventDefault();
+          const el = elements.find(e => e.id === selectedElementId);
+          if (el) {
+              const step = e.shiftKey ? 1 : gridSize;
+              let dx = 0, dy = 0;
+              if (e.key === 'ArrowUp') dy = -step;
+              if (e.key === 'ArrowDown') dy = step;
+              if (e.key === 'ArrowLeft') dx = -step;
+              if (e.key === 'ArrowRight') dx = step;
+              updateElement(selectedElementId, { x: el.x + dx, y: el.y + dy });
+          }
+      }
+
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedElementId) {
         removeElement(selectedElementId);
         removeRoute(selectedElementId);
@@ -31,7 +70,7 @@ export function PlanCanvas() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedElementId]);
+  }, [selectedElementId, elements, isDrawing, selectedTool]);
 
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -153,14 +192,17 @@ export function PlanCanvas() {
       }
   };
 
-  const gridLines = [];
-  const renderGridSize = 3000;
-  for (let i = 0; i < renderGridSize / gridSize; i++) {
-    gridLines.push(<Line key={`v-${i}`} points={[i * gridSize, 0, i * gridSize, renderGridSize]} stroke="#e5e7eb" strokeWidth={1} />);
-  }
-  for (let j = 0; j < renderGridSize / gridSize; j++) {
-    gridLines.push(<Line key={`h-${j}`} points={[0, j * gridSize, renderGridSize, j * gridSize]} stroke="#e5e7eb" strokeWidth={1} />);
-  }
+  const gridLines = useMemo(() => {
+    const lines = [];
+    const renderGridSize = 3000;
+    for (let i = 0; i < renderGridSize / gridSize; i++) {
+        lines.push(<Line key={`v-${i}`} points={[i * gridSize, 0, i * gridSize, renderGridSize]} stroke="#f3f4f6" strokeWidth={1} />);
+    }
+    for (let j = 0; j < renderGridSize / gridSize; j++) {
+        lines.push(<Line key={`h-${j}`} points={[0, j * gridSize, renderGridSize, j * gridSize]} stroke="#f3f4f6" strokeWidth={1} />);
+    }
+    return lines;
+  }, [gridSize]);
 
   return (
     <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden flex-1 relative">

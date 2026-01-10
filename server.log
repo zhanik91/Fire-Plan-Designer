@@ -2,6 +2,5 @@
 > rest-express@1.0.0 dev
 > NODE_ENV=development tsx server/index.ts
 
-1:42:36 PM [express] serving on port 5000
+1:54:30 PM [express] serving on port 5000
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
-1:44:57 PM [vite] (client) hmr update /src/index.css, /src/components/editor/AIAssistant.tsx
