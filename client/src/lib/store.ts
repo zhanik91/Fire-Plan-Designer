@@ -10,6 +10,7 @@ interface PlanState {
   metadata: PlanMetadata;
   selectedTool: ElementType | 'select' | 'route_main' | 'route_backup' | 'wall_draw' | 'room' | 'erase';
   selectedElementId: string | null;
+  isAssistantOpen: boolean;
   
   addElement: (type: ElementType, x: number, y: number) => void;
   updateElement: (id: string, updates: Partial<PlanElement>) => void;
@@ -25,6 +26,7 @@ interface PlanState {
   setMetadata: (updates: Partial<PlanMetadata>) => void;
   setSelectedTool: (tool: PlanState['selectedTool']) => void;
   setSelectedElementId: (id: string | null) => void;
+  setAssistantOpen: (isOpen: boolean) => void;
   clearPlan: () => void;
   loadTemplate: (templateData: { elements: PlanElement[], walls: PlanWall[], metadata: Partial<PlanMetadata> }) => void;
 }
@@ -42,6 +44,7 @@ export const usePlanStore = create<PlanState>()(
       },
       selectedTool: 'select',
       selectedElementId: null,
+      isAssistantOpen: false,
 
       addElement: (type, x, y) => set((state) => ({
         elements: [...state.elements, {
@@ -91,6 +94,7 @@ export const usePlanStore = create<PlanState>()(
 
       setSelectedTool: (tool) => set({ selectedTool: tool }),
       setSelectedElementId: (id) => set({ selectedElementId: id }),
+      setAssistantOpen: (isOpen) => set({ isAssistantOpen: isOpen }),
       
       clearPlan: () => set({
         elements: [],

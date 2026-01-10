@@ -10,7 +10,8 @@ import {
 } from "@/components/ui/select";
 import {
   MousePointer2, DoorOpen, FireExtinguisher, Phone,
-  MapPin, Route, Square, Flame, Bell, Type
+  MapPin, Route, Square, Flame, Bell, Type,
+  Stethoscope, Users, MoveUp
 } from "lucide-react";
 import { ElementType } from "@/lib/types";
 import { PLAN_TEMPLATES } from "@/lib/templates";
@@ -86,6 +87,11 @@ export function Sidebar() {
         <ToolButton tool="phone" icon={Phone} label="Телефон" />
         <ToolButton tool="alarm" icon={Bell} label="Кнопка тревоги" />
         <ToolButton tool="you_are_here" icon={MapPin} label="Метка 'Вы здесь'" />
+
+        <div className="text-[10px] text-muted-foreground mt-2 mb-2">Дополнительно</div>
+        <ToolButton tool="stairs" icon={MoveUp} label="Лестница" />
+        <ToolButton tool="first_aid" icon={Stethoscope} label="Аптечка" />
+        <ToolButton tool="assembly_point" icon={Users} label="Точка сбора" />
       </div>
 
       <div className="mt-auto">
