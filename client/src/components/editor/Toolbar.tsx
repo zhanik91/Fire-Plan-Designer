@@ -98,7 +98,7 @@ export function Toolbar() {
   const handleExport = async (format: 'png' | 'pdf') => {
     if (format === 'pdf') {
         const state = usePlanStore.getState();
-        generatePDF({
+        await generatePDF({
             elements: state.elements,
             routes: state.routes,
             walls: state.walls,
