@@ -5,12 +5,18 @@ import { ElementType } from '@/lib/types';
 import Konva from 'konva';
 import { SymbolRenderer } from './icons';
 import { PropertiesPanel } from './PropertiesPanel';
+import { ContextMenu } from './ContextMenu';
+
+interface GuideLine {
+    points: number[];
+    orientation: 'vertical' | 'horizontal';
+}
 
 export function PlanCanvas() {
   const { 
     elements, routes, walls, selectedTool, addElement, updateElement, 
     selectedElementId, setSelectedElementId, addRoute, addWall, addRoom,
-    removeElement, removeRoute, removeWall
+    removeElement, removeRoute, removeWall, setSelectedTool
   } = usePlanStore();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -19,6 +25,11 @@ export function PlanCanvas() {
   const [isDrawing, setIsDrawing] = useState(false);
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [guides, setGuides] = useState<GuideLine[]>([]);
+  const [contextMenu, setContextMenu] = useState<{ x: number, y: number, elementId?: string } | null>(null);
+
+  const gridSize = 20;
+  const SNAP_THRESHOLD = 10;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -43,6 +54,7 @@ export function PlanCanvas() {
               setSelectedElementId(null);
               setSelectedTool('select');
           }
+          setContextMenu(null);
           return;
       }
 
@@ -74,7 +86,6 @@ export function PlanCanvas() {
 
   const width = window.innerWidth;
   const height = window.innerHeight;
-  const gridSize = 20;
 
   useEffect(() => {
     if (selectedElementId && transformerRef.current) {
@@ -104,6 +115,9 @@ export function PlanCanvas() {
   };
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (e.evt.button === 2) return; // Ignore right click for drawing
+    setContextMenu(null);
+
     const stage = e.target.getStage();
     if (!stage) return;
     const transform = stage.getAbsoluteTransform().copy();
@@ -119,7 +133,7 @@ export function PlanCanvas() {
       return;
     }
 
-    if (['extinguisher', 'fire_hose', 'phone', 'alarm', 'exit', 'you_are_here', 'text'].includes(selectedTool)) {
+    if (['extinguisher', 'fire_hose', 'phone', 'alarm', 'exit', 'you_are_here', 'text', 'stairs', 'first_aid', 'assembly_point'].includes(selectedTool)) {
       addElement(selectedTool as ElementType, x, y);
       return;
     }
@@ -192,6 +206,97 @@ export function PlanCanvas() {
       }
   };
 
+  const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Clear guides initially
+      setGuides([]);
+
+      const target = e.target;
+      const targetId = target.name(); // Element ID
+
+      // We only snap if "select" tool and CTRL is NOT pressed (or IS pressed? Standard is snap ON by default)
+      // Let's implement snap ON by default, hold CTRL to disable.
+      if (e.evt.ctrlKey) return;
+
+      const stage = target.getStage();
+      if (!stage) return;
+
+      const targetRect = target.getClientRect();
+      const targetCenterX = targetRect.x + targetRect.width / 2;
+      const targetCenterY = targetRect.y + targetRect.height / 2;
+
+      // Find possible snap lines
+      const newGuides: GuideLine[] = [];
+      let snapX: number | null = null;
+      let snapY: number | null = null;
+
+      // Collect all interesting points (centers of other elements)
+      // Optimization: In a real large app, use a spatial index (QuadTree). Here, array iteration is fine for <100 elements.
+      elements.forEach(el => {
+          if (el.id === targetId) return; // Skip self
+
+          // Get screen coords (approximate since we store logical coords, but elements are simple)
+          // Actually, we should compare logical coords (el.x, el.y) directly since elements are grouped and transformed.
+          // The dragged element (e.target) position is updated in real-time.
+          // But Konva DragMove updates the Node position.
+
+          // Let's keep it simple: Snap to grid AND align with others X/Y
+          if (Math.abs(target.x() - el.x) < SNAP_THRESHOLD) {
+              snapX = el.x;
+              newGuides.push({ points: [el.x, -5000, el.x, 5000], orientation: 'vertical' });
+          }
+          if (Math.abs(target.y() - el.y) < SNAP_THRESHOLD) {
+              snapY = el.y;
+              newGuides.push({ points: [-5000, el.y, 5000, el.y], orientation: 'horizontal' });
+          }
+      });
+
+      // Also snap to grid if no object snap
+      if (snapX === null && Math.abs(target.x() % gridSize) < 5) {
+          // snapX = Math.round(target.x() / gridSize) * gridSize;
+      }
+
+      if (snapX !== null) {
+          target.x(snapX);
+      }
+      if (snapY !== null) {
+          target.y(snapY);
+      }
+
+      setGuides(newGuides);
+  };
+
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+      setGuides([]);
+      const el = elements.find(el => el.id === e.target.name());
+      if (el) {
+          updateElement(el.id, { x: e.target.x(), y: e.target.y() });
+      }
+  };
+
+  const handleContextMenu = (e: Konva.KonvaEventObject<PointerEvent>) => {
+      e.evt.preventDefault();
+      const stage = e.target.getStage();
+      // Use client coordinates for the fixed-position menu
+      const x = e.evt.clientX;
+      const y = e.evt.clientY;
+
+      if (stage) {
+          const shape = e.target;
+          const group = shape.findAncestor('Group') || (shape.nodeType === 'Group' ? shape : null);
+          const elementId = group?.name();
+
+          if (elementId) {
+              setSelectedElementId(elementId);
+          }
+
+          setContextMenu({
+              x: x,
+              y: y,
+              elementId: elementId || undefined
+          });
+      }
+  };
+
   const gridLines = useMemo(() => {
     const lines = [];
     const renderGridSize = 3000;
@@ -205,12 +310,29 @@ export function PlanCanvas() {
   }, [gridSize]);
 
   return (
-    <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden flex-1 relative">
+    <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden flex-1 relative"
+         onContextMenu={(e) => e.preventDefault()}>
       <PropertiesPanel />
+      {contextMenu && (
+          <ContextMenu
+            x={contextMenu.x}
+            y={contextMenu.y}
+            elementId={contextMenu.elementId}
+            onClose={() => setContextMenu(null)}
+          />
+      )}
+
       <Stage
         width={width} height={height} draggable={selectedTool === 'select'}
         onWheel={handleWheel} scaleX={stageScale} scaleY={stageScale} x={stagePos.x} y={stagePos.y}
-        ref={stageRef} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onDblClick={handleDoubleClick}
+        ref={stageRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onDblClick={handleDoubleClick}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onContextMenu={handleContextMenu}
         className="cursor-crosshair bg-gray-50"
       >
         <Layer>
@@ -250,6 +372,8 @@ export function PlanCanvas() {
               draggable={selectedTool === 'select'}
               onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(el.id); }}
               onDragEnd={(e) => { updateElement(el.id, { x: e.target.x(), y: e.target.y() }); }}
+              // We use onDragMove for snapping, but we also need to update React state eventually or trust Konva's internal state during drag
+              // onDragMove logic is in the Stage prop
               onTransformEnd={(e) => { const node = e.target; updateElement(el.id, { x: node.x(), y: node.y(), rotation: node.rotation(), scale: node.scaleX() }); }}
             >
                {el.type === 'text' ? (
@@ -258,6 +382,16 @@ export function PlanCanvas() {
             </Group>
           ))}
           <Transformer ref={transformerRef} />
+
+          {guides.map((guide, i) => (
+              <Line
+                key={i}
+                points={guide.points}
+                stroke="#ff0000"
+                strokeWidth={1}
+                dash={[4, 4]}
+              />
+          ))}
         </Layer>
       </Stage>
     </div>
