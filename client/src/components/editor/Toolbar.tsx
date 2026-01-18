@@ -1,11 +1,13 @@
 import { usePlanStore } from "@/lib/store";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Trash2, FileOutput, Undo2, Redo2, Bot } from "lucide-react";
+import { Download, Trash2, FileOutput, Undo2, Redo2, Bot, Save, FolderOpen } from "lucide-react";
 import jsPDF from "jspdf";
 import { CalibrationDialog } from "./CalibrationDialog";
 import { generatePDF } from "@/lib/pdfGenerator";
+import { SaveProjectDialog, LoadProjectDialog } from "./SaveLoadDialogs";
 
 export function Toolbar() {
   const {
@@ -20,13 +22,17 @@ export function Toolbar() {
     isAssistantOpen,
     setAssistantOpen
   } = usePlanStore();
+
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [loadDialogOpen, setLoadDialogOpen] = useState(false);
+
   // const { undo, redo, pastStates, futureStates } = usePlanStore.temporal.getState();
   // We won't subscribe reactively to enable/disable buttons to avoid TS complexity in this step.
   // Use buttons always enabled or simple check.
   const canUndo = true; // temporal.pastStates.length > 0;
   const canRedo = true; // temporal.futureStates.length > 0;
 
-  const handleSave = () => {
+  const handleExportJSON = () => {
     const state = usePlanStore.getState();
     const data = {
         elements: state.elements,
@@ -43,7 +49,7 @@ export function Toolbar() {
     URL.revokeObjectURL(url);
   };
 
-  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -51,32 +57,8 @@ export function Toolbar() {
     reader.onload = (event) => {
         try {
             const json = JSON.parse(event.target?.result as string);
-            // Validate basic structure?
             if (json.elements && json.walls && json.metadata) {
-                // We need to batch update the store.
-                // Assuming we can just replace state.
-                // But we don't have a replaceAll action.
-                // We can just clear and add.
-                usePlanStore.getState().clearPlan();
-
-                // Direct state manipulation is discouraged without actions, but simpler here.
-                // Or we add a loadPlan action.
-                // Let's add loadPlan to store for cleanliness.
-                // For now, I'll hack it: use actions.
-                // Wait, I should add 'loadPlan' to store.
-                // But I can't edit store easily from here without planning.
-                // I'll stick to store.ts modification in next step if strict,
-                // but let's check store again.
-                // I have 'clearPlan'.
-                // I will add 'loadPlan' in next step. For now I'll just use the store instance if possible or add it now.
-                // Actually, I can use setState on the store directly if exported?
-                // No, usePlanStore.setState({ ...json }) might work if types match.
-                usePlanStore.setState({
-                    elements: json.elements,
-                    routes: json.routes || [],
-                    walls: json.walls || [],
-                    metadata: json.metadata
-                });
+                usePlanStore.getState().loadPlan(json);
             }
         } catch (err) {
             console.error("Failed to load plan", err);
@@ -187,24 +169,25 @@ export function Toolbar() {
 
         <div className="h-6 w-px bg-border mx-2"></div>
 
-        <Button variant="outline" size="sm" onClick={handleSave}>
-          <Download className="h-4 w-4 mr-2" />
+        <Button variant="outline" size="sm" onClick={() => setSaveDialogOpen(true)}>
+          <Save className="h-4 w-4 mr-2" />
           Сохранить
         </Button>
-        <div className="relative">
-            <Button variant="outline" size="sm" className="relative cursor-pointer">
-                <FileOutput className="h-4 w-4 mr-2" />
-                Загрузить
-                <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleLoad}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                />
-            </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => setLoadDialogOpen(true)}>
+          <FolderOpen className="h-4 w-4 mr-2" />
+          Открыть
+        </Button>
+
+        <SaveProjectDialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen} />
+        <LoadProjectDialog open={loadDialogOpen} onOpenChange={setLoadDialogOpen} />
 
         <div className="h-6 w-px bg-border mx-2"></div>
+
+        <div className="relative">
+            <Button variant="ghost" size="sm" className="relative cursor-pointer text-xs h-6 px-2 text-muted-foreground" onClick={handleExportJSON}>
+                Экспорт JSON
+            </Button>
+        </div>
 
         <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
           <FileOutput className="h-4 w-4 mr-2" />
