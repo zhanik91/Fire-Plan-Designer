@@ -29,6 +29,7 @@ interface PlanState {
   setAssistantOpen: (isOpen: boolean) => void;
   clearPlan: () => void;
   loadTemplate: (templateData: { elements: PlanElement[], walls: PlanWall[], metadata: Partial<PlanMetadata> }) => void;
+  loadPlan: (planData: { elements: PlanElement[], routes: PlanRoute[], walls: PlanWall[], metadata: PlanMetadata }) => void;
 }
 
 export const usePlanStore = create<PlanState>()(
@@ -114,6 +115,18 @@ export const usePlanStore = create<PlanState>()(
         walls: data.walls.map(w => ({ ...w, id: uuidv4() })),
         elements: data.elements.map(e => ({ ...e, id: uuidv4() })),
         metadata: { ...state.metadata, ...data.metadata }
+      })),
+
+      loadPlan: (data) => set(() => ({
+        elements: data.elements || [],
+        routes: data.routes || [],
+        walls: data.walls || [],
+        metadata: data.metadata || {
+          buildingName: 'Без названия',
+          floor: '1',
+          responsible: '',
+        },
+        selectedElementId: null
       }))
     }),
     {

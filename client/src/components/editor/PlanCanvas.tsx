@@ -129,7 +129,9 @@ export function PlanCanvas() {
             setIsDrawing(true);
             setCurrentPoints([x, y, x, y]);
         } else {
-             if (selectedTool.startsWith('route')) setCurrentPoints([...currentPoints, x, y]);
+             if (selectedTool.startsWith('route') || selectedTool === 'wall_draw') {
+                 setCurrentPoints([...currentPoints, x, y]);
+             }
         }
     }
   };
@@ -146,9 +148,9 @@ export function PlanCanvas() {
     const x = Math.round(localPos.x / gridSize) * gridSize;
     const y = Math.round(localPos.y / gridSize) * gridSize;
 
-    if (selectedTool === 'wall_draw' || selectedTool === 'room') {
+    if (selectedTool === 'room') {
         setCurrentPoints([currentPoints[0], currentPoints[1], x, y]);
-    } else if (selectedTool.startsWith('route')) {
+    } else if (selectedTool.startsWith('route') || selectedTool === 'wall_draw') {
         const newPoints = [...currentPoints];
         newPoints[newPoints.length - 2] = x;
         newPoints[newPoints.length - 1] = y;
@@ -157,13 +159,11 @@ export function PlanCanvas() {
   };
 
   const handleMouseUp = () => {
+    // For walls and routes, we click to add points, so MouseUp doesn't finish drawing unless it's 'room' or single segment logic
     if (selectedTool === 'wall_draw' && isDrawing) {
-        if (currentPoints.length === 4) {
-            const points = [{x: currentPoints[0], y: currentPoints[1]}, {x: currentPoints[2], y: currentPoints[3]}];
-            if (points[0].x !== points[1].x || points[0].y !== points[1].y) addWall(points);
-        }
-        setIsDrawing(false);
-        setCurrentPoints([]);
+         // Logic is now in MouseDown to add points. MouseUp does nothing for polyline wall until finished.
+         // But we need to handle the case where we want to "commit" the last segment if we were dragging?
+         // No, this tool is click-click-click.
     } else if (selectedTool === 'room' && isDrawing) {
         const [x1, y1, x2, y2] = currentPoints;
         if (x1 !== x2 || y1 !== y2) {
@@ -181,11 +181,19 @@ export function PlanCanvas() {
   };
 
   const handleDoubleClick = () => {
-      if (selectedTool.startsWith('route') && isDrawing) {
+      if ((selectedTool.startsWith('route') || selectedTool === 'wall_draw') && isDrawing) {
           if (currentPoints.length >= 4) {
               const points = [];
               for (let i = 0; i < currentPoints.length; i += 2) points.push({x: currentPoints[i], y: currentPoints[i+1]});
-              addRoute(points, selectedTool === 'route_backup' ? 'backup' : 'main');
+
+              if (selectedTool === 'wall_draw') {
+                  // Add each segment as a wall
+                  for (let i = 0; i < points.length - 1; i++) {
+                      addWall([points[i], points[i+1]]);
+                  }
+              } else {
+                  addRoute(points, selectedTool === 'route_backup' ? 'backup' : 'main');
+              }
           }
           setIsDrawing(false);
           setCurrentPoints([]);

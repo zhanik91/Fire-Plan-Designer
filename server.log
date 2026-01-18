@@ -2,5 +2,6 @@
 > rest-express@1.0.0 dev
 > NODE_ENV=development tsx server/index.ts
 
-1:54:30 PM [express] serving on port 5000
+5:19:11 PM [express] serving on port 5000
 [baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+5:20:38 PM [express] GET /api/plans 200 in 3ms :: []
