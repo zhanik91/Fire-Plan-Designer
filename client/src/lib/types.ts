@@ -51,6 +51,14 @@ export interface PlanMetadata {
   pixelsPerMeter?: number;
 }
 
+export interface PlanLayer {
+  id: string;
+  name: string;
+  visible: boolean;
+  locked: boolean;
+  order: number;
+}
+
 export const ELEMENT_LABELS: Record<ElementType, string> = {
   wall: 'Стена',
   window: 'Окно',

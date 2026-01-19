@@ -7,6 +7,7 @@ import { SymbolRenderer } from './icons';
 import { PropertiesPanel } from './PropertiesPanel';
 import { ContextMenu } from './ContextMenu';
 import { findPath, findNearestExit } from '@/lib/pathfinding';
+import useMeasure from 'react-use-measure';
 
 interface GuideLine {
     points: number[];
@@ -15,7 +16,7 @@ interface GuideLine {
 
 export function PlanCanvas() {
   const { 
-    elements, routes, walls, selectedTool, addElement, updateElement, 
+    elements, routes, walls, layers, selectedTool, addElement, updateElement,
     selectedElementId, setSelectedElementId, addRoute, addWall, addRoom,
     removeElement, removeRoute, removeWall, setSelectedTool, metadata
   } = usePlanStore();
@@ -28,6 +29,9 @@ export function PlanCanvas() {
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [guides, setGuides] = useState<GuideLine[]>([]);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, elementId?: string } | null>(null);
+
+  // Measure parent for responsive size
+  const [containerRef, bounds] = useMeasure();
 
   const gridSize = 20;
   const SNAP_THRESHOLD = 10;
@@ -89,9 +93,6 @@ export function PlanCanvas() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedElementId, elements, isDrawing, selectedTool]);
 
-  const width = window.innerWidth;
-  const height = window.innerHeight;
-
   useEffect(() => {
     if (selectedElementId && transformerRef.current) {
         const stage = transformerRef.current.getStage();
@@ -112,6 +113,7 @@ export function PlanCanvas() {
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
     const newScale = e.evt.deltaY < 0 ? oldScale * scaleBy : oldScale / scaleBy;
+
     setStageScale(newScale);
     setStagePos({
         x: pointer.x - (pointer.x - stage.x()) / oldScale * newScale,
@@ -120,11 +122,35 @@ export function PlanCanvas() {
   };
 
   const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Middle click or space + drag for panning?
+    // Konva draggable prop on Stage handles dragging.
+    // If tool is 'select', draggable is true.
+    // We want panning even if not select? No, usually Pan tool or spacebar.
+    // For now, keep standard select-drag for stage.
+
     if (e.evt.button === 2) return; // Ignore right click for drawing
     setContextMenu(null);
 
+    // Check layer locking for creation
+    const getLayerId = (t: string) => {
+        if (t === 'wall_draw' || t === 'room') return 'walls';
+        if (t.startsWith('route')) return 'routes';
+        return 'elements';
+    };
+
+    if (selectedTool !== 'select') {
+         const layerId = getLayerId(selectedTool);
+         const layer = layers.find(l => l.id === layerId);
+         if (layer && (layer.locked || !layer.visible)) {
+             alert(`Слой "${layer.name}" заблокирован или скрыт.`);
+             return;
+         }
+    }
+
     const stage = e.target.getStage();
     if (!stage) return;
+
+    // Logic for drawing start
     const transform = stage.getAbsoluteTransform().copy();
     transform.invert();
     const pos = stage.getPointerPosition();
@@ -156,16 +182,10 @@ export function PlanCanvas() {
         const start = { x, y };
         const exit = findNearestExit(start, elements);
         if (exit) {
-            // Calculate bounds
-            let minX = x, maxX = x, minY = y, maxY = y;
-            // Simple robust bounds
-            minX = -5000; maxX = 5000; minY = -5000; maxY = 5000;
-
+            let minX = -5000, maxX = 5000, minY = -5000, maxY = 5000;
             const path = findPath(start, exit, walls, { minX, maxX, minY, maxY });
             if (path && path.length > 0) {
                 addRoute(path, 'main');
-                // Select tool back to select? Or keep placing?
-                // Provide feedback?
             } else {
                 alert("Не удалось найти маршрут к выходу.");
             }
@@ -234,39 +254,24 @@ export function PlanCanvas() {
   };
 
   const handleDragMove = (e: Konva.KonvaEventObject<DragEvent>) => {
-      // Clear guides initially
+      // If dragging stage (panning), do nothing
+      if (e.target === e.target.getStage()) return;
+
       setGuides([]);
-
       const target = e.target;
-      const targetId = target.name(); // Element ID
-
-      // We only snap if "select" tool and CTRL is NOT pressed (or IS pressed? Standard is snap ON by default)
-      // Let's implement snap ON by default, hold CTRL to disable.
+      const targetId = target.name();
       if (e.evt.ctrlKey) return;
 
       const stage = target.getStage();
       if (!stage) return;
 
-      const targetRect = target.getClientRect();
-      const targetCenterX = targetRect.x + targetRect.width / 2;
-      const targetCenterY = targetRect.y + targetRect.height / 2;
-
-      // Find possible snap lines
       const newGuides: GuideLine[] = [];
       let snapX: number | null = null;
       let snapY: number | null = null;
 
-      // Collect all interesting points (centers of other elements)
-      // Optimization: In a real large app, use a spatial index (QuadTree). Here, array iteration is fine for <100 elements.
       elements.forEach(el => {
-          if (el.id === targetId) return; // Skip self
+          if (el.id === targetId) return;
 
-          // Get screen coords (approximate since we store logical coords, but elements are simple)
-          // Actually, we should compare logical coords (el.x, el.y) directly since elements are grouped and transformed.
-          // The dragged element (e.target) position is updated in real-time.
-          // But Konva DragMove updates the Node position.
-
-          // Let's keep it simple: Snap to grid AND align with others X/Y
           if (Math.abs(target.x() - el.x) < SNAP_THRESHOLD) {
               snapX = el.x;
               newGuides.push({ points: [el.x, -5000, el.x, 5000], orientation: 'vertical' });
@@ -277,17 +282,8 @@ export function PlanCanvas() {
           }
       });
 
-      // Also snap to grid if no object snap
-      if (snapX === null && Math.abs(target.x() % gridSize) < 5) {
-          // snapX = Math.round(target.x() / gridSize) * gridSize;
-      }
-
-      if (snapX !== null) {
-          target.x(snapX);
-      }
-      if (snapY !== null) {
-          target.y(snapY);
-      }
+      if (snapX !== null) target.x(snapX);
+      if (snapY !== null) target.y(snapY);
 
       setGuides(newGuides);
   };
@@ -302,43 +298,53 @@ export function PlanCanvas() {
 
   const handleContextMenu = (e: Konva.KonvaEventObject<PointerEvent>) => {
       e.evt.preventDefault();
-      const stage = e.target.getStage();
-      // Use client coordinates for the fixed-position menu
       const x = e.evt.clientX;
       const y = e.evt.clientY;
+      const stage = e.target.getStage();
 
       if (stage) {
           const shape = e.target;
           const group = shape.findAncestor('Group') || (shape.nodeType === 'Group' ? shape : null);
           const elementId = group?.name();
 
-          if (elementId) {
-              setSelectedElementId(elementId);
-          }
-
-          setContextMenu({
-              x: x,
-              y: y,
-              elementId: elementId || undefined
-          });
+          if (elementId) setSelectedElementId(elementId);
+          setContextMenu({ x, y, elementId: elementId || undefined });
       }
   };
 
+  // Render Infinite Grid around 0,0 for a reasonable area, or dynamic based on view?
+  // Dynamic is better. But static large area is easier.
+  // We use -2000 to 2000?
+  // Let's make it large enough.
   const gridLines = useMemo(() => {
     const lines = [];
-    const renderGridSize = 3000;
-    for (let i = 0; i < renderGridSize / gridSize; i++) {
-        lines.push(<Line key={`v-${i}`} points={[i * gridSize, 0, i * gridSize, renderGridSize]} stroke="#f3f4f6" strokeWidth={1} />);
+    const min = -2000;
+    const max = 2000;
+    for (let i = min; i < max; i += gridSize) {
+        lines.push(<Line key={`v-${i}`} points={[i, min, i, max]} stroke="#f3f4f6" strokeWidth={1} />);
     }
-    for (let j = 0; j < renderGridSize / gridSize; j++) {
-        lines.push(<Line key={`h-${j}`} points={[0, j * gridSize, renderGridSize, j * gridSize]} stroke="#f3f4f6" strokeWidth={1} />);
+    for (let j = min; j < max; j += gridSize) {
+        lines.push(<Line key={`h-${j}`} points={[min, j, max, j]} stroke="#f3f4f6" strokeWidth={1} />);
     }
     return lines;
   }, [gridSize]);
 
+  // Page Guide (A4 Landscape approx 297mm x 210mm -> converted to px)
+  // Let's assume 1m = 50px. A4 is 0.297m x 0.21m? No, that's small scale.
+  // Standard plan 1:100.
+  // 10m building = 1000cm -> 10cm on paper.
+  // Let's just draw a "Page" rectangle that user can reference.
+  // e.g. 1000x700 px (approx 20m x 14m at 50px/m)
+  const PageGuide = () => (
+      <Rect x={0} y={0} width={1000} height={700} stroke="#e2e8f0" strokeWidth={2} dash={[10, 5]} listening={false} />
+  );
+
   return (
-    <div className="bg-white shadow-sm border border-border rounded-md overflow-hidden flex-1 relative"
-         onContextMenu={(e) => e.preventDefault()}>
+    <div
+        ref={containerRef}
+        className="bg-gray-100 shadow-inner border-l border-border flex-1 relative overflow-hidden"
+        onContextMenu={(e) => e.preventDefault()}
+    >
       <PropertiesPanel />
       {contextMenu && (
           <ContextMenu
@@ -350,8 +356,18 @@ export function PlanCanvas() {
       )}
 
       <Stage
-        width={width} height={height} draggable={selectedTool === 'select'}
-        onWheel={handleWheel} scaleX={stageScale} scaleY={stageScale} x={stagePos.x} y={stagePos.y}
+        width={bounds.width} height={bounds.height}
+        draggable={true} // Always draggable for pan (except when interacting?)
+        // Actually, if we set draggable=true on Stage, it intercepts all drags.
+        // We usually want Pan tool.
+        // Let's enable Stage drag ONLY if Middle Mouse or Space held.
+        // OR simpler: Always enabled, but we check target in logic?
+        // If we drag an element, bubble stops?
+        // Konva handles this: clicking on draggable shape drags shape. Clicking on stage drags stage.
+
+        onWheel={handleWheel}
+        scaleX={stageScale} scaleY={stageScale}
+        x={stagePos.x} y={stagePos.y}
         ref={stageRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -360,50 +376,60 @@ export function PlanCanvas() {
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onContextMenu={handleContextMenu}
-        className="cursor-crosshair bg-gray-50"
+        className="cursor-crosshair"
       >
         <Layer>
+          <PageGuide />
           <Group>{gridLines}</Group>
-          {walls.map((wall) => {
-              const p1 = wall.points[0];
-              const p2 = wall.points[1];
-              // Calculate length
-              const lenPx = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
-              const ppm = metadata.pixelsPerMeter || 50;
-              const lenM = (lenPx / ppm).toFixed(1);
-              const midX = (p1.x + p2.x) / 2;
-              const midY = (p1.y + p2.y) / 2;
 
-              return (
-                <Group key={wall.id}>
-                    <Line
-                        name={wall.id} points={[p1.x, p1.y, p2.x, p2.y]}
-                        stroke={selectedElementId === wall.id ? "#2563EB" : "black"} strokeWidth={selectedElementId === wall.id ? 4 : 3}
-                        onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(wall.id); }}
-                    />
-                    {/* Dimension Text */}
-                    <Text
-                        x={midX} y={midY}
-                        text={`${lenM}m`}
-                        fontSize={10}
-                        fill="#666"
-                        align="center"
-                        offsetX={10}
-                        offsetY={10}
-                    />
-                </Group>
-              );
-          })}
-           {routes.map((route) => (
-            <Arrow
-              key={route.id} name={route.id} points={route.points.flatMap(p => [p.x, p.y])}
-              stroke={selectedElementId === route.id ? "#2563EB" : "#166534"}
-              strokeWidth={selectedElementId === route.id ? 4 : 3}
-              fill={selectedElementId === route.id ? "#2563EB" : "#166534"}
-              dash={route.type === 'backup' ? [10, 5] : []}
-              onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(route.id); }}
-            />
-          ))}
+          {/* Walls Layer */}
+          <Group visible={layers.find(l => l.id === 'walls')?.visible} listening={!layers.find(l => l.id === 'walls')?.locked}>
+              {walls.map((wall) => {
+                  const p1 = wall.points[0];
+                  const p2 = wall.points[1];
+                  // Calculate length
+                  const lenPx = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+                  const ppm = metadata.pixelsPerMeter || 50;
+                  const lenM = (lenPx / ppm).toFixed(1);
+                  const midX = (p1.x + p2.x) / 2;
+                  const midY = (p1.y + p2.y) / 2;
+
+                  return (
+                    <Group key={wall.id}>
+                        <Line
+                            name={wall.id} points={[p1.x, p1.y, p2.x, p2.y]}
+                            stroke={selectedElementId === wall.id ? "#2563EB" : "black"} strokeWidth={selectedElementId === wall.id ? 4 : 3}
+                            onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(wall.id); }}
+                        />
+                        {/* Dimension Text */}
+                        <Text
+                            x={midX} y={midY}
+                            text={`${lenM}m`}
+                            fontSize={10}
+                            fill="#666"
+                            align="center"
+                            offsetX={10}
+                            offsetY={10}
+                        />
+                    </Group>
+                  );
+              })}
+          </Group>
+
+           {/* Routes Layer */}
+           <Group visible={layers.find(l => l.id === 'routes')?.visible} listening={!layers.find(l => l.id === 'routes')?.locked}>
+               {routes.map((route) => (
+                <Arrow
+                  key={route.id} name={route.id} points={route.points.flatMap(p => [p.x, p.y])}
+                  stroke={selectedElementId === route.id ? "#2563EB" : "#166534"}
+                  strokeWidth={selectedElementId === route.id ? 4 : 3}
+                  fill={selectedElementId === route.id ? "#2563EB" : "#166534"}
+                  dash={route.type === 'backup' ? [10, 5] : []}
+                  onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(route.id); }}
+                />
+              ))}
+          </Group>
+
           {isDrawing && (
               <>
                 {selectedTool === 'room' ? (
@@ -416,21 +442,23 @@ export function PlanCanvas() {
                 )}
               </>
           )}
-          {elements.map((el) => (
-            <Group
-              key={el.id} name={el.id} x={el.x} y={el.y} rotation={el.rotation} scaleX={el.scale} scaleY={el.scale}
-              draggable={selectedTool === 'select'}
-              onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(el.id); }}
-              onDragEnd={(e) => { updateElement(el.id, { x: e.target.x(), y: e.target.y() }); }}
-              // We use onDragMove for snapping, but we also need to update React state eventually or trust Konva's internal state during drag
-              // onDragMove logic is in the Stage prop
-              onTransformEnd={(e) => { const node = e.target; updateElement(el.id, { x: node.x(), y: node.y(), rotation: node.rotation(), scale: node.scaleX() }); }}
-            >
-               {el.type === 'text' ? (
-                   <Text text={el.text || "Текст"} fontSize={14} fill="black" fontStyle="bold" />
-               ) : ( <SymbolRenderer type={el.type} /> )}
-            </Group>
-          ))}
+
+          {/* Elements Layer */}
+          <Group visible={layers.find(l => l.id === 'elements')?.visible} listening={!layers.find(l => l.id === 'elements')?.locked}>
+              {elements.map((el) => (
+                <Group
+                  key={el.id} name={el.id} x={el.x} y={el.y} rotation={el.rotation} scaleX={el.scale} scaleY={el.scale}
+                  draggable={selectedTool === 'select'}
+                  onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(el.id); }}
+                  onDragEnd={(e) => { updateElement(el.id, { x: e.target.x(), y: e.target.y() }); }}
+                  onTransformEnd={(e) => { const node = e.target; updateElement(el.id, { x: node.x(), y: node.y(), rotation: node.rotation(), scale: node.scaleX() }); }}
+                >
+                   {el.type === 'text' ? (
+                       <Text text={el.text || "Текст"} fontSize={14} fill="black" fontStyle="bold" />
+                   ) : ( <SymbolRenderer type={el.type} /> )}
+                </Group>
+              ))}
+          </Group>
           <Transformer ref={transformerRef} />
 
           {guides.map((guide, i) => (

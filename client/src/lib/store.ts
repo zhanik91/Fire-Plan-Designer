@@ -1,12 +1,13 @@
 import { create } from 'zustand';
 import { temporal } from 'zundo';
-import { PlanElement, PlanRoute, PlanMetadata, ElementType, Point, PlanWall, RouteType } from './types';
+import { PlanElement, PlanRoute, PlanMetadata, ElementType, Point, PlanWall, RouteType, PlanLayer } from './types';
 import { v4 as uuidv4 } from 'uuid';
 
 interface PlanState {
   elements: PlanElement[];
   routes: PlanRoute[];
   walls: PlanWall[];
+  layers: PlanLayer[];
   metadata: PlanMetadata;
   selectedTool: ElementType | 'select' | 'route_main' | 'route_backup' | 'wall_draw' | 'room' | 'erase' | 'magic_route';
   selectedElementId: string | null;
@@ -22,6 +23,10 @@ interface PlanState {
   addWall: (points: Point[]) => void;
   addRoom: (walls: {id: string, points: Point[]}[]) => void;
   removeWall: (id: string) => void;
+
+  // Layer Actions
+  toggleLayerVisibility: (id: string) => void;
+  toggleLayerLock: (id: string) => void;
   
   setMetadata: (updates: Partial<PlanMetadata>) => void;
   setSelectedTool: (tool: PlanState['selectedTool']) => void;
@@ -37,6 +42,11 @@ export const usePlanStore = create<PlanState>()(
       elements: [],
       routes: [],
       walls: [],
+      layers: [
+        { id: 'walls', name: 'Стены', visible: true, locked: false, order: 0 },
+        { id: 'elements', name: 'Объекты', visible: true, locked: false, order: 1 },
+        { id: 'routes', name: 'Маршруты', visible: true, locked: false, order: 2 },
+      ],
       metadata: {
         buildingName: 'Офисное здание №1',
         floor: '1',
@@ -86,6 +96,14 @@ export const usePlanStore = create<PlanState>()(
 
       removeWall: (id) => set((state) => ({
         walls: state.walls.filter((w) => w.id !== id)
+      })),
+
+      toggleLayerVisibility: (id) => set((state) => ({
+        layers: state.layers.map(l => l.id === id ? { ...l, visible: !l.visible } : l)
+      })),
+
+      toggleLayerLock: (id) => set((state) => ({
+        layers: state.layers.map(l => l.id === id ? { ...l, locked: !l.locked } : l)
       })),
 
       setMetadata: (updates) => set((state) => ({

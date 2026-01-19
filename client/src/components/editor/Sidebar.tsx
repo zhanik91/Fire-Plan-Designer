@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ElementType } from "@/lib/types";
 import { PLAN_TEMPLATES } from "@/lib/templates";
+import { LayersPanel } from "./LayersPanel";
 
 const ToolButton = ({ tool, icon: Icon, label }: { tool: any; icon: any; label: string }) => {
   const { selectedTool, setSelectedTool } = usePlanStore();
@@ -94,6 +95,10 @@ export function Sidebar() {
         <ToolButton tool="first_aid" icon={Stethoscope} label="Аптечка" />
         <ToolButton tool="assembly_point" icon={Users} label="Точка сбора" />
       </div>
+
+      <Separator />
+
+      <LayersPanel />
 
       <div className="mt-auto">
         <div className="p-3 bg-blue-50 border border-blue-100 rounded-md">

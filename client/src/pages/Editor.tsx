@@ -15,48 +15,22 @@ export default function Editor() {
       <div className="flex-1 flex overflow-hidden">
         <Sidebar />
         
-        <main className="flex-1 p-8 overflow-auto flex flex-col items-center">
-            {/* The Printable Area Wrapper */}
-            <div 
-                id="printable-area" 
-                className="bg-white shadow-2xl p-8 min-w-[880px] min-h-[700px] flex flex-col gap-6"
-                style={{ width: '297mm', minHeight: '210mm' }} // A4 Landscape roughly
-            >
-                {/* Header of the document */}
-                <div className="text-center border-b-2 border-black pb-4 mb-2">
-                    <h1 className="text-2xl font-bold font-serif uppercase tracking-widest text-black mb-1">План эвакуации</h1>
-                    <div className="flex justify-between px-12 text-sm font-mono mt-2">
-                         <span>ОБЪЕКТ: {metadata.buildingName}</span>
-                         <span>ЭТАЖ: {metadata.floor}</span>
-                    </div>
-                </div>
+        <main className="flex-1 flex flex-col relative overflow-hidden">
+            {/* Infinite Canvas */}
+            <div className="flex-1 relative">
+                <PlanCanvas />
+            </div>
 
-                <div className="flex-1 relative border border-gray-200">
-                    {/* The Canvas */}
-                    <PlanCanvas />
-                </div>
+            {/* Overlay Elements (Header/Legend for view only, export handles full) */}
+            {/* Note: In "Editor" mode, we might want these floating or toggleable.
+                For now, let's keep Legend floating bottom-left.
+            */}
+            <div className="absolute bottom-4 left-4 z-10 w-96">
+                <Legend />
+            </div>
 
-                {/* Footer / Legend */}
-                <div className="mt-auto pt-4 border-t-2 border-black">
-                    <div className="flex gap-8">
-                        <div className="flex-1">
-                            <Legend />
-                        </div>
-                        <div className="w-64 flex flex-col justify-end text-xs font-mono">
-                            <div className="border-b border-black mb-2 pb-1 flex justify-between">
-                                <span>Ответственный:</span>
-                                <span>{metadata.responsible}</span>
-                            </div>
-                            <div className="border-b border-black mb-2 pb-1 flex justify-between">
-                                <span>Подпись:</span>
-                                <span>_________________</span>
-                            </div>
-                            <div className="text-right text-[10px] text-gray-400 mt-2">
-                                Сформировано автоматически
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div className="absolute top-4 left-4 z-10 bg-white/90 p-2 rounded shadow backdrop-blur-sm">
+                <div className="text-xs font-bold">{metadata.buildingName} - Этаж {metadata.floor}</div>
             </div>
         </main>
 

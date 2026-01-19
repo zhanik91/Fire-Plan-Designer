@@ -32,16 +32,18 @@ export function ContextMenu({ x, y, elementId, onClose }: ContextMenuProps) {
       if (!elementId) return;
       const el = elements.find(e => e.id === elementId);
       if (el) {
-          // Add slightly offset
-          usePlanStore.getState().addElement(el.type, el.x + 20, el.y + 20);
-          // Note: addElement doesn't support full cloning (rotation/scale) yet via this method,
-          // but looking at store, it just creates new.
-          // Ideally we should have a cloneElement action.
-          // For now, this is "good enough" for MVP or we expand store.
-          // Let's expand store or just use what we have.
-          // actually addElement uses default rotation/scale.
-          // If we want exact clone, we might need a new action.
-          // Let's just add a new one of same type for now.
+          // Manually add fully cloned element to store (bypass addElement for full props)
+          const newEl = {
+              ...el,
+              id: crypto.randomUUID(),
+              x: el.x + 20,
+              y: el.y + 20,
+              // Keep rotation, scale, text
+          };
+
+          usePlanStore.setState(state => ({
+              elements: [...state.elements, newEl]
+          }));
       }
       onClose();
   };
