@@ -1,1 +1,43 @@
-[]
+[
+  {
+    "name": "Офисное здание №1",
+    "content": {
+      "elements": [
+        {
+          "id": "c533a7e6-e86e-4509-a993-eca7992e98f4",
+          "type": "extinguisher",
+          "x": 240,
+          "y": 120,
+          "rotation": 0,
+          "scale": 1
+        },
+        {
+          "id": "515bd234-3905-4fb7-9103-eb7c747156e1",
+          "type": "fire_hose",
+          "x": 380,
+          "y": 120,
+          "rotation": 0,
+          "scale": 1
+        },
+        {
+          "id": "36435a3e-5f17-4168-b2aa-e83a47fd01d9",
+          "type": "alarm",
+          "x": 300,
+          "y": 240,
+          "rotation": 0,
+          "scale": 1
+        }
+      ],
+      "routes": [],
+      "walls": [],
+      "metadata": {
+        "buildingName": "Офисное здание №1",
+        "floor": "1",
+        "responsible": "Иванов И.И."
+      }
+    },
+    "textPart": null,
+    "id": 1,
+    "createdAt": "2026-01-19T04:56:22.776Z"
+  }
+]
