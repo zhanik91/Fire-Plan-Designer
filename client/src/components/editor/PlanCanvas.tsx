@@ -6,6 +6,7 @@ import Konva from 'konva';
 import { SymbolRenderer } from './icons';
 import { PropertiesPanel } from './PropertiesPanel';
 import { ContextMenu } from './ContextMenu';
+import { findPath, findNearestExit } from '@/lib/pathfinding';
 
 interface GuideLine {
     points: number[];
@@ -16,7 +17,7 @@ export function PlanCanvas() {
   const { 
     elements, routes, walls, selectedTool, addElement, updateElement, 
     selectedElementId, setSelectedElementId, addRoute, addWall, addRoom,
-    removeElement, removeRoute, removeWall, setSelectedTool
+    removeElement, removeRoute, removeWall, setSelectedTool, metadata
   } = usePlanStore();
   
   const stageRef = useRef<Konva.Stage>(null);
@@ -33,6 +34,10 @@ export function PlanCanvas() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user is typing in an input
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
       // Undo/Redo
       if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
          e.preventDefault();
@@ -144,6 +149,28 @@ export function PlanCanvas() {
             setCurrentPoints([x, y, x, y]);
         } else {
              if (selectedTool.startsWith('route')) setCurrentPoints([...currentPoints, x, y]);
+        }
+    }
+
+    if (selectedTool === 'magic_route') {
+        const start = { x, y };
+        const exit = findNearestExit(start, elements);
+        if (exit) {
+            // Calculate bounds
+            let minX = x, maxX = x, minY = y, maxY = y;
+            // Simple robust bounds
+            minX = -5000; maxX = 5000; minY = -5000; maxY = 5000;
+
+            const path = findPath(start, exit, walls, { minX, maxX, minY, maxY });
+            if (path && path.length > 0) {
+                addRoute(path, 'main');
+                // Select tool back to select? Or keep placing?
+                // Provide feedback?
+            } else {
+                alert("Не удалось найти маршрут к выходу.");
+            }
+        } else {
+            alert("Нет выходов на плане!");
         }
     }
   };
@@ -337,13 +364,36 @@ export function PlanCanvas() {
       >
         <Layer>
           <Group>{gridLines}</Group>
-          {walls.map((wall) => (
-            <Line
-              key={wall.id} name={wall.id} points={wall.points.flatMap(p => [p.x, p.y])}
-              stroke={selectedElementId === wall.id ? "#2563EB" : "black"} strokeWidth={selectedElementId === wall.id ? 4 : 3}
-              onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(wall.id); }}
-            />
-          ))}
+          {walls.map((wall) => {
+              const p1 = wall.points[0];
+              const p2 = wall.points[1];
+              // Calculate length
+              const lenPx = Math.sqrt((p2.x - p1.x)**2 + (p2.y - p1.y)**2);
+              const ppm = metadata.pixelsPerMeter || 50;
+              const lenM = (lenPx / ppm).toFixed(1);
+              const midX = (p1.x + p2.x) / 2;
+              const midY = (p1.y + p2.y) / 2;
+
+              return (
+                <Group key={wall.id}>
+                    <Line
+                        name={wall.id} points={[p1.x, p1.y, p2.x, p2.y]}
+                        stroke={selectedElementId === wall.id ? "#2563EB" : "black"} strokeWidth={selectedElementId === wall.id ? 4 : 3}
+                        onClick={(e) => { e.cancelBubble = true; if(selectedTool === 'select') setSelectedElementId(wall.id); }}
+                    />
+                    {/* Dimension Text */}
+                    <Text
+                        x={midX} y={midY}
+                        text={`${lenM}m`}
+                        fontSize={10}
+                        fill="#666"
+                        align="center"
+                        offsetX={10}
+                        offsetY={10}
+                    />
+                </Group>
+              );
+          })}
            {routes.map((route) => (
             <Arrow
               key={route.id} name={route.id} points={route.points.flatMap(p => [p.x, p.y])}

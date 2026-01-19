@@ -11,7 +11,7 @@ import {
 import {
   MousePointer2, DoorOpen, FireExtinguisher, Phone,
   MapPin, Route, Square, Flame, Bell, Type,
-  Stethoscope, Users, MoveUp
+  Stethoscope, Users, MoveUp, Wand2
 } from "lucide-react";
 import { ElementType } from "@/lib/types";
 import { PLAN_TEMPLATES } from "@/lib/templates";
@@ -77,6 +77,7 @@ export function Sidebar() {
         <div className="text-[10px] text-muted-foreground mb-2">Согласно ППБ РК</div>
         <ToolButton tool="route_main" icon={Route} label="Основной (Сплошной)" />
         <ToolButton tool="route_backup" icon={Route} label="Запасной (Пунктир)" />
+        <ToolButton tool="magic_route" icon={Wand2} label="Авто-маршрут (Magic)" />
       </div>
       <Separator />
       <div>

@@ -8,7 +8,7 @@ interface PlanState {
   routes: PlanRoute[];
   walls: PlanWall[];
   metadata: PlanMetadata;
-  selectedTool: ElementType | 'select' | 'route_main' | 'route_backup' | 'wall_draw' | 'room' | 'erase';
+  selectedTool: ElementType | 'select' | 'route_main' | 'route_backup' | 'wall_draw' | 'room' | 'erase' | 'magic_route';
   selectedElementId: string | null;
   isAssistantOpen: boolean;
   

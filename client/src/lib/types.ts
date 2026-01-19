@@ -13,6 +13,9 @@ export type ElementType =
   | 'first_aid'
   | 'assembly_point';
 
+// 'magic_route' is a tool, not an element type stored in DB, but used in UI state.
+// We handle it in store.ts selectedTool type.
+
 export interface PlanElement {
   id: string;
   type: ElementType;
