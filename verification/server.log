@@ -1,0 +1,12 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+Seeding users from internal list...
+6:39:22 AM [express] serving on port 5000
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+6:39:54 AM [vite] (client) ✨ new dependencies optimized: react-hook-form, @hookform/resolvers/zod, zod, konva
+6:39:54 AM [vite] (client) ✨ optimized dependencies changed. reloading
+6:40:52 AM [express] GET /api/user 401 in 3ms
+6:40:52 AM [express] POST /api/login 200 in 70ms :: {"username":"dist_g_ast","password":"2e7941597729f8b17ce5e1311b9bf83bd75ac688aeab4185461c8f3b14e1355f44b7c15fb5461999ad71c60cddacf83adcf99f8c6441259ac1fd8382311a6e88.78be35463f84e3f1476d0906b223b55a","role":"DISTRICT","level":"DISTRICT","region":"ДЧС г.Аст УЧС район","unit":null,"id":1}
+6:40:52 AM [express] GET /api/user 200 in 1ms :: {"username":"dist_g_ast","password":"2e7941597729f8b17ce5e1311b9bf83bd75ac688aeab4185461c8f3b14e1355f44b7c15fb5461999ad71c60cddacf83adcf99f8c6441259ac1fd8382311a6e88.78be35463f84e3f1476d0906b223b55a","role":"DISTRICT","level":"DISTRICT","region":"ДЧС г.Аст УЧС район","unit":null,"id":1}

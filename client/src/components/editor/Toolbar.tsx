@@ -2,10 +2,13 @@ import { usePlanStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Trash2, FileOutput, Undo2, Redo2, Bot } from "lucide-react";
+import { Download, Trash2, FileOutput, Undo2, Redo2, Bot, CloudUpload, CloudDownload } from "lucide-react";
 import jsPDF from "jspdf";
 import { CalibrationDialog } from "./CalibrationDialog";
 import { generatePDF } from "@/lib/pdfGenerator";
+import { useAuth } from "@/lib/auth-context";
+import { useToast } from "@/hooks/use-toast";
+import Konva from "konva";
 
 export function Toolbar() {
   const {
@@ -18,32 +21,27 @@ export function Toolbar() {
     removeWall,
     setSelectedElementId,
     isAssistantOpen,
-    setAssistantOpen
+    setAssistantOpen,
+    elements, routes, walls, layers
   } = usePlanStore();
-  // const { undo, redo, pastStates, futureStates } = usePlanStore.temporal.getState();
-  // We won't subscribe reactively to enable/disable buttons to avoid TS complexity in this step.
-  // Use buttons always enabled or simple check.
+  const { user } = useAuth();
+  const { toast } = useToast();
+
   const canUndo = true; // temporal.pastStates.length > 0;
   const canRedo = true; // temporal.futureStates.length > 0;
 
-  const handleSave = () => {
-    const state = usePlanStore.getState();
-    const data = {
-        elements: state.elements,
-        routes: state.routes,
-        walls: state.walls,
-        metadata: state.metadata
-    };
+  const handleSaveLocal = () => {
+    const data = { elements, routes, walls, metadata };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `plan-${state.metadata.buildingName}.json`;
+    link.download = `plan-${metadata.buildingName}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
 
-  const handleLoad = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLoadLocal = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -51,39 +49,48 @@ export function Toolbar() {
     reader.onload = (event) => {
         try {
             const json = JSON.parse(event.target?.result as string);
-            // Validate basic structure?
             if (json.elements && json.walls && json.metadata) {
-                // We need to batch update the store.
-                // Assuming we can just replace state.
-                // But we don't have a replaceAll action.
-                // We can just clear and add.
                 usePlanStore.getState().clearPlan();
-
-                // Direct state manipulation is discouraged without actions, but simpler here.
-                // Or we add a loadPlan action.
-                // Let's add loadPlan to store for cleanliness.
-                // For now, I'll hack it: use actions.
-                // Wait, I should add 'loadPlan' to store.
-                // But I can't edit store easily from here without planning.
-                // I'll stick to store.ts modification in next step if strict,
-                // but let's check store again.
-                // I have 'clearPlan'.
-                // I will add 'loadPlan' in next step. For now I'll just use the store instance if possible or add it now.
-                // Actually, I can use setState on the store directly if exported?
-                // No, usePlanStore.setState({ ...json }) might work if types match.
                 usePlanStore.setState({
                     elements: json.elements,
                     routes: json.routes || [],
                     walls: json.walls || [],
                     metadata: json.metadata
                 });
+                toast({ title: "План загружен", description: "Данные успешно восстановлены из файла." });
             }
         } catch (err) {
             console.error("Failed to load plan", err);
-            alert("Ошибка загрузки файла");
+            toast({ title: "Ошибка", description: "Не удалось прочитать файл.", variant: "destructive" });
         }
     };
     reader.readAsText(file);
+  };
+
+  const handleSaveCloud = async () => {
+      if (!user) {
+          toast({ title: "Ошибка", description: "Необходимо войти в систему.", variant: "destructive" });
+          return;
+      }
+
+      try {
+          const res = await fetch('/api/plans', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  name: metadata.buildingName,
+                  content: { elements, routes, walls, metadata }
+              })
+          });
+
+          if (res.ok) {
+              toast({ title: "Сохранено", description: "План сохранен в облако." });
+          } else {
+              throw new Error('Failed to save');
+          }
+      } catch (e) {
+          toast({ title: "Ошибка", description: "Не удалось сохранить в облако.", variant: "destructive" });
+      }
   };
 
   const handleDeleteSelected = () => {
@@ -102,26 +109,21 @@ export function Toolbar() {
             elements: state.elements,
             routes: state.routes,
             walls: state.walls,
-            metadata: state.metadata
+            metadata: state.metadata,
+            layers: state.layers
         });
         return;
     }
 
-    const stage = document.querySelector('.konvajs-content canvas');
-    if (!stage) return;
-
-    // Use Konva's toDataURL for cleaner PNG export of just the canvas
-    const konvaStage = (window as any).Konva?.stages?.[0];
+    // Access Konva stage via Konva global since react-konva registers it
+    const konvaStage = Konva.stages[0];
     if (konvaStage) {
         const dataURL = konvaStage.toDataURL({ pixelRatio: 2 });
         const link = document.createElement('a');
         link.download = `evacuation-plan-${metadata.floor}.png`;
         link.href = dataURL;
         link.click();
-        return;
     }
-
-    // Fallback if needed
   };
 
   return (
@@ -174,11 +176,6 @@ export function Toolbar() {
           className="text-destructive hover:text-destructive hover:bg-destructive/10"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          Удалить
-        </Button>
-        <Button variant="ghost" size="sm" onClick={clearPlan} className="text-destructive hover:text-destructive hover:bg-destructive/10">
-          <Trash2 className="h-4 w-4 mr-2" />
-          Очистить всё
         </Button>
 
         <div className="h-6 w-px bg-border mx-2"></div>
@@ -187,32 +184,35 @@ export function Toolbar() {
 
         <div className="h-6 w-px bg-border mx-2"></div>
 
-        <Button variant="outline" size="sm" onClick={handleSave}>
-          <Download className="h-4 w-4 mr-2" />
-          Сохранить
-        </Button>
-        <div className="relative">
-            <Button variant="outline" size="sm" className="relative cursor-pointer">
-                <FileOutput className="h-4 w-4 mr-2" />
-                Загрузить
-                <input
-                    type="file"
-                    accept=".json"
-                    onChange={handleLoad}
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                />
+        <div className="flex gap-1">
+             <Button variant="outline" size="sm" onClick={handleSaveLocal} title="Сохранить файл JSON">
+                <Download className="h-4 w-4" />
             </Button>
+            <div className="relative">
+                <Button variant="outline" size="sm" className="relative cursor-pointer" title="Загрузить файл JSON">
+                    <FileOutput className="h-4 w-4" />
+                    <input
+                        type="file"
+                        accept=".json"
+                        onChange={handleLoadLocal}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                    />
+                </Button>
+            </div>
+            {user && (
+                 <Button variant="outline" size="sm" onClick={handleSaveCloud} title="Сохранить в облако">
+                    <CloudUpload className="h-4 w-4" />
+                 </Button>
+            )}
         </div>
 
         <div className="h-6 w-px bg-border mx-2"></div>
 
         <Button variant="outline" size="sm" onClick={() => handleExport('png')}>
-          <FileOutput className="h-4 w-4 mr-2" />
           PNG
         </Button>
         <Button variant="default" size="sm" onClick={() => handleExport('pdf')}>
-          <Download className="h-4 w-4 mr-2" />
-          PDF (A4)
+          PDF
         </Button>
 
         <div className="h-6 w-px bg-border mx-2"></div>
